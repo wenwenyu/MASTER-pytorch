@@ -109,7 +109,7 @@ def crop_box_worker(args):
             M = cv2.getPerspectiveTransform(pts1, pts2)
             img_cropped = cv2.warpPerspective(img, M, (int(width), int(height)))
 
-            cropped_dir_name = image_name.split('/')[0]
+            cropped_dir_name = image_name.split('/')[-2]
             cropped_file_name = "{}_{}_{}.jpg".format(cropped_indx,
                                                       image_name.split('/')[-1][:-len('.jpg')], word_indx)
             cropped_indx += 1
