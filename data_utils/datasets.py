@@ -178,7 +178,8 @@ class JSONDataset(Dataset):
             return self.__getitem__(np.random.randint(self.__len__()))
 
 class LmdbDataset(Dataset):
-    def __init__(self, lmdb_dir_root=None, transform=None, target_transform=None, training=True, case_sensitive=True,
+    def __init__(self, lmdb_dir_root=None, transform=None, target_transform=None, training=True, img_w=256,
+                 img_h=32, case_sensitive=True,
                  convert_to_gray=True):
         self.env = lmdb.open(lmdb_dir_root,
                              max_readers=32,
@@ -195,6 +196,8 @@ class LmdbDataset(Dataset):
         self.training = training
         self.case_sensitive = case_sensitive
         self.convert_to_gray = convert_to_gray
+        self.img_w = img_w
+        self.img_h = img_h
 
         self.image_keys, self.labels = self.__get_images_and_labels()
         self.nSamples = len(self.image_keys)
