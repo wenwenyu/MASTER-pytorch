@@ -14,6 +14,8 @@ PyTorch reimplementation of ["MASTER: Multi-Aspect Non-local Network for Scene T
 You can also find Tensorflow reimplementation at [MASTER-TF](https://github.com/jiangxiluning/MASTER-TF) repository,
 and the performance is almost identical. (PS. Logo inspired by the Master Oogway in Kung Fu Panda)
 
+Slides can be found at [here](https://github.com/wenwenyu/MASTER-pytorch/blob/main/assets/MASTER.pdf).
+
 ## Honors based on MASTER
 * 1st place (2020/10) solution to [ICDAR 2019 Robust Reading Challenge on Reading Chinese Text on Signboard (task2)](https://rrc.cvc.uab.es/?ch=12&com=evaluation&task=2)
 * 2nd and 5th places (2020/10) in [The 5th China Innovation Challenge on Handwritten Mathematical Expression Recognition](https://www.heywhale.com/home/competition/5f703ac023f41e002c3ed5e4/content/6)
