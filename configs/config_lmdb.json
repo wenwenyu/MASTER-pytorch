@@ -67,7 +67,7 @@
     "val_dataset": {
         "type": "LmdbVer2Dataset",
         "args": {
-            "img_root":"/home/wwyu/dataset/data_lmdb_release/val",
+            "lmdb_dir_root":"/home/wwyu/dataset/data_lmdb_release/val",
             "img_w":160,
             "img_h":48,
             "training":true
