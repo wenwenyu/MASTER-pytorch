@@ -8,3 +8,18 @@ This implementation requires the input data in the following format:
 1. `img_folder` folder: image files.
 
 Or use lmdb format dataset and modified the corresponding config file.
+
+### Lmdb data
+Base on lmdb dataset in `deep text recognition benchmark`: [Source repository](https://github.com/clovaai/deep-text-recognition-benchmark)
+
+Download lmdb dataset: [Here](https://www.dropbox.com/sh/i39abvnefllx2si/AABX4yjNn2iLeKZh1OAwJUffa/data_lmdb_release.zip?dl=0)
+    
+Unzip and modify folder below and use config file `config_lmdb.json` to train:
+
+    dataset/data_lmdb_release/
+        training/
+            MJ_train
+            ST
+        val/
+            MJ_test
+            MJ_valid
