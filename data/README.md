@@ -15,6 +15,7 @@ Base on lmdb dataset in `deep text recognition benchmark`: [Source repository](h
 Download lmdb dataset: [Here](https://www.dropbox.com/sh/i39abvnefllx2si/AABX4yjNn2iLeKZh1OAwJUffa/data_lmdb_release.zip?dl=0)
     
 Unzip and modify folder below and use config file `config_lmdb.json` to train:
+(Can custom sub folder in folder `training` and `val` by fix `select_data` in config file)
 
     dataset/data_lmdb_release/
         training/

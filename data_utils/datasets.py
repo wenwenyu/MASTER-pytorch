@@ -260,6 +260,25 @@ class LmdbDataset(Dataset):
         except Exception as read_e:
             return self.__getitem__(np.random.randint(self.__len__()))
 
+
+def hierarchy_dataset(root, select_data=None, training=True, img_w=256, img_h=32, transform=None, target_transform=None,
+                      case_sensitive=True, convert_to_gray=True):
+    """
+    combine lmdb data in sub directory (MJ_train vs Synthtext)
+    change sub directory if you want in config file by format "sub_dir-sub_dir-..."
+    """
+    dataset_list = []
+    if select_data is not None:
+        select_data = select_data.split('-')
+        for select_d in select_data:
+            dataset = LmdbVer2Dataset(lmdb_dir_root=os.path.join(root, select_d), training=training, img_w=img_w,
+                                      img_h=img_h, transform=transform, target_transform=target_transform,
+                                      case_sensitive=case_sensitive, convert_to_gray=convert_to_gray)
+            dataset_list.append(dataset)
+    concatenated_dataset = ConcatDataset(dataset_list)
+    return concatenated_dataset
+
+
 class LmdbVer2Dataset(Dataset):
     """
     load lmdb dataset in deep text recognition benchmark [https://github.com/clovaai/deep-text-recognition-benchmark]
@@ -276,20 +295,14 @@ class LmdbVer2Dataset(Dataset):
     def __init__(self, lmdb_dir_root=None, transform=None, target_transform=None, training=True, img_w=256,
                  img_h=32, case_sensitive=True,
                  convert_to_gray=True):
-        self.image_keys = []
-        self.labels = []
-        for root in next(os.walk(lmdb_dir_root))[1]:
-            self.env = lmdb.open(os.path.join(lmdb_dir_root, root),
-                                 max_readers=32,
-                                 readonly=True,
-                                 lock=False,
-                                 readahead=False,
-                                 meminit=False)
-            if not self.env:
-                raise RuntimeError('Lmdb file cannot be open')
-            each_image_keys, each_labels = self.__get_images_and_labels()
-            self.image_keys += each_image_keys
-            self.labels += each_labels
+        self.env = lmdb.open(os.path.join(lmdb_dir_root, root),
+                             max_readers=32,
+                             readonly=True,
+                             lock=False,
+                             readahead=False,
+                             meminit=False)
+        if not self.env:
+            raise RuntimeError('Lmdb file cannot be open')
 
         self.transform = transform
         self.target_transform = target_transform
@@ -300,7 +313,7 @@ class LmdbVer2Dataset(Dataset):
         self.img_w = img_w
         self.img_h = img_h
 
-        # self.image_keys, self.labels = self.__get_images_and_labels()
+        self.image_keys, self.labels = self.__get_images_and_labels()
         self.nSamples = len(self.image_keys)
 
     def __len__(self):
