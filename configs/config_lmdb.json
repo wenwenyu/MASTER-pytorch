@@ -1,0 +1,130 @@
+{
+    "name": "MASTER_Default",
+    "run_id":"example",
+
+    "finetune":false,
+
+    "distributed":true,
+    "local_world_size":4,
+    "local_rank":-1,
+    "global_rank":-1,
+
+    "deterministic":true,
+    "seed":123,
+
+    "model_arch": {
+        "type": "MASTER",
+        "args": {
+            "common_kwargs":{
+                "n_class":-1,
+                "with_encoder":false,
+                "model_size": 512,
+                "multiheads": 8
+            },
+            "backbone_kwargs":{
+                "in_channels": 3,
+                "gcb_kwargs":{
+                    "ratio": 0.0625,
+                    "headers": 1,
+                    "att_scale": true,
+                    "fusion_type": "channel_concat",
+                    "layers":[false, true, true, true]
+                }
+            },
+            "encoder_kwargs":{
+                "stacks": 3,
+                "dropout": 0.2,
+                "feed_forward_size": 2048
+            },
+            "decoder_kwargs":{
+                "stacks": 3,
+                "dropout": 0.2,
+                "feed_forward_size": 2048
+            }
+        }
+    },
+
+    "train_dataset": {
+        "type": "hierarchy_dataset",
+        "args": {
+            "lmdb_dir_root":"/home/wwyu/dataset/data_lmdb_release/training",
+            "select_data": "MJ_train-ST",
+            "img_w":160,
+            "img_h":48,
+            "training":true
+        }
+    },
+    "train_loader": {
+        "type": "DataLoader",
+        "args":{
+            "batch_size": 32,
+            "shuffle": true,
+            "drop_last": true,
+            "num_workers": 8,
+            "pin_memory":false
+        }
+    },
+
+    "val_dataset": {
+        "type": "hierarchy_dataset",
+        "args": {
+            "lmdb_dir_root":"/home/wwyu/dataset/data_lmdb_release/val",
+            "select_data": "MJ_test-MJ_valid",
+            "img_w":160,
+            "img_h":48,
+            "training":true
+        }
+    },
+    "val_loader": {
+          "type": "DataLoader",
+          "args":{
+              "batch_size": 32,
+              "shuffle": false,
+              "drop_last": false,
+              "num_workers": -1,
+              "pin_memory":false
+          }
+      },
+
+    "optimizer": {
+          "type": "Adam",
+          "args":{
+              "lr": 0.0004
+          }
+    },
+    "lr_scheduler": {
+        "type": null,
+        "args": {
+            "step_size": 30,
+            "gamma": 0.1
+        }
+    },
+
+    "trainer": {
+        "epochs": 12,
+        "max_len_step":null,
+
+        "do_validation": true,
+        "validation_start_epoch": 5,
+        "log_step_interval": 1,
+        "val_step_interval": 100000,
+
+        "train_batch_size": 64,
+        "val_batch_size":64,
+        "train_num_workers":2,
+        "val_num_workers":2,
+
+        "save_dir": "/home/wwyu/model_output/master_saved/",
+        "save_period": 250,
+        "log_verbosity": 2,
+
+        "monitor": "max word_acc",
+        "monitor_open": true,
+        "early_stop": -1,
+
+        "anomaly_detection": false,
+        "tensorboard": false,
+
+        "sync_batch_norm":true
+    }
+}
