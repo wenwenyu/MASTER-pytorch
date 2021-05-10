@@ -14,7 +14,7 @@ import lmdb
 
 import torch
 import torch.distributed as dist
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, ConcatDataset
 from torch.utils.data import sampler
 from torch.utils.data.sampler import Sampler
 import torchvision.transforms as transforms
@@ -295,7 +295,7 @@ class LmdbVer2Dataset(Dataset):
     def __init__(self, lmdb_dir_root=None, transform=None, target_transform=None, training=True, img_w=256,
                  img_h=32, case_sensitive=True,
                  convert_to_gray=True):
-        self.env = lmdb.open(os.path.join(lmdb_dir_root, root),
+        self.env = lmdb.open(lmdb_dir_root,
                              max_readers=32,
                              readonly=True,
                              lock=False,
