@@ -3,306 +3,210 @@
 # @Email: yuwenwen62@gmail.com
 # @Created Time: 10/3/2020 1:27 PM
 
-import math
 import copy
+import math
 
-import numpy as np
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
+from torch.nn import Dropout
 
 
-def clones(module, N):
-    "Produce N identical layers."
-    return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
+def clones(_to_clone_module, _clone_times):
+    """Produce N identical layers."""
+    return nn.ModuleList([copy.deepcopy(_to_clone_module) for _ in range(_clone_times)])
 
 
-class Encoder(nn.Module):
-    "Core encoder is a stack of N layers"
+def subsequent_mask(_size):
+    return torch.triu(torch.ones(1, _size, _size), diagonal=1) == 0
 
-    def __init__(self, layer, N):
+
+class MultiHeadAttention(torch.jit.ScriptModule):
+    def __init__(self, _multi_attention_heads, _dimensions, _dropout=0.1):
         """
 
-        :param layer: single encoder layer
-        :param N: number of laybers
-        """
-        super(Encoder, self).__init__()
-
-        self.layers = clones(layer, N)
-        self.norm = LayerNorm(layer.size)
-
-    def forward(self, *input):
-        "Pass the input (and mask) through each layer in turn."
-
-        x = input[0]
-        mask = input[1]
-        for layer in self.layers:
-            x = layer(x, mask)
-        return self.norm(x)
-
-
-class LayerNorm(nn.Module):
-    "Construct a layernorm module"
-
-    def __init__(self, feature_shape, eps=1e-6):
-        """
-
-        :param feature_shape:
-        :param eps:
-        """
-        super(LayerNorm, self).__init__()
-
-        # self.a_2 = nn.Parameter(torch.ones(feature_shape))
-        # self.b_2 = nn.Parameter(torch.zeros(feature_shape))
-        # self.eps = eps
-        self._norm = torch.nn.LayerNorm(feature_shape, eps=eps)
-
-    def forward(self, *input):
-        x = input[0]
-        # mean = x.mean(-1, keepdim=True)
-        # std = x.std(-1, keepdim=True)
-
-        # return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
-        return self._norm(x)
-
-
-class SublayerConnection(nn.Module):
-    """
-    A residual connection followed by a layer norm.
-    Note for code simplicity the norm is first as opposed to last.
-    """
-
-    def __init__(self, size, dropout):
-        """
-
-        :param size:
-        :param dropout:
-        """
-        super(SublayerConnection, self).__init__()
-        self.norm = LayerNorm(size)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, *input):
-        x = input[0]
-        sublayer = input[1]
-        "Apply residual connection to any sublayer with the same size."
-        return x + self.dropout(sublayer(self.norm(x)))
-
-
-class EncoderLayer(nn.Module):
-    "Encoder is made up of self-attn and feed forward (defined below)"
-
-    def __init__(self, size, self_attn, feed_forward, dropout):
-        """
-
-        :param size:
-        :param self_attn:
-        :param feed_forward:
-        :param dropput:
-        """
-        super(EncoderLayer, self).__init__()
-        self.self_attn = self_attn
-        self.feed_forward = feed_forward
-        self.sublayer = clones(SublayerConnection(size, dropout), 2)
-        self.size = size
-
-    def forward(self, *input):
-        x = input[0]
-        mask = input[1]
-        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))
-        return self.sublayer[1](x, self.feed_forward)
-
-
-class Decoder(nn.Module):
-    "Generic N layer decoder with masking."
-
-    def __init__(self, layer, N):
-        super(Decoder, self).__init__()
-        self.layers = clones(layer, N)
-        self.norm = LayerNorm(layer.size)
-
-    def forward(self, *input):
-        x = input[0]
-        memory = input[1]
-        src_mask = input[2]
-        tgt_mask = input[3]
-
-        for layer in self.layers:
-            x = layer(x, memory, src_mask, tgt_mask)
-        return self.norm(x)
-
-
-class DecoderLayer(nn.Module):
-    "Decoder is made of self-attn, src-attn, and feed forward (defined below)"
-
-    def __init__(self, size, self_attn, src_attn, feed_forward, dropout):
-        """
-
-        :param size:
-        :param self_attn: Masked Multi-Head Attention
-        :param src_attn: Multi-Head Attention
-        :param feed_forward:
-        :param dropout:
-        """
-        super(DecoderLayer, self).__init__()
-        self.size = size
-        self.self_attn = self_attn
-        self.src_attn = src_attn  # cross attention
-        self.feed_forward = feed_forward
-        self.sublayer = clones(SublayerConnection(size, dropout), 3)
-
-    def forward(self, *input):
-        x = input[0]
-        memory = input[1]  # from encoder as key and value, x as query for src_attention(multi-head attention)
-        src_mask = input[2]
-        tgt_mask = input[3]
-
-        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask))
-        x = self.sublayer[1](x, lambda x: self.src_attn(x, memory, memory, src_mask))
-        return self.sublayer[2](x, self.feed_forward)
-
-
-def subsequent_mask(size):
-    "mask out subsequent position"
-
-    attn_shape = (1, size, size)
-    subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
-    return torch.from_numpy(subsequent_mask) == 0
-
-
-def dot_product_attention(query, key, value, mask=None, dropout=None):
-    """
-    Compute 'Scaled Dot Product Attention
-
-    :param query: (N, h, seq_len, d_q), h is multi-head
-    :param key: (N, h, seq_len, d_k)
-    :param value: (N, h, seq_len, d_v)
-    :param mask: None or (N, 1, seq_len, seq_len), 0 will be replaced with -1e9
-    :param dropout:
-    :return:
-    """
-
-    d_k = value.size(-1)
-    score = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)  # (N, h, seq_len, seq_len)
-    if mask is not None:
-        score = score.masked_fill(mask == 0, -1e9)  # score (N, h, seq_len, seq_len)
-
-    p_attn = F.softmax(score, dim=-1)
-    if dropout is not None:
-        p_attn = dropout(p_attn)
-    # (N, h, seq_len, d_v), (N, h, seq_len, seq_len)
-    return torch.matmul(p_attn, value), p_attn
-
-
-class MultiHeadAttention(nn.Module):
-    def __init__(self, h, d_model, dropout=0.1):
-        """
-
-        :param h: number of self attention head
-        :param d_model: dimension of model
-        :param dropout:
+        :param _multi_attention_heads: number of self attention head
+        :param _dimensions: dimension of model
+        :param _dropout:
         """
         super(MultiHeadAttention, self).__init__()
 
-        assert d_model % h == 0
+        assert _dimensions % _multi_attention_heads == 0
         # requires d_v = d_k, d_q = d_k = d_v = d_m / h
-        self.d_k = int(d_model / h)
-        self.h = h
-        self.linears = clones(nn.Linear(d_model, d_model), 4)  # (q, k, v, last output layer)
-        self.attn = None
-        self.dropout = nn.Dropout(p=dropout)
+        self.d_k = int(_dimensions / _multi_attention_heads)
+        self.h = _multi_attention_heads
+        self.linears = clones(nn.Linear(_dimensions, _dimensions), 4)  # (q, k, v, last output layer)
+        self.attention = None
+        self.dropout = nn.Dropout(p=_dropout)
 
-    def forward(self, *input):
-        query = input[0]  # (N, seq_len, d_m)
-        key = input[1]  # (N, seq_len, d_m)
-        value = input[2]  # (N, seq_len, d_m)
-        # None or (N, 1, seq_len, seq_len), attention score will be masked with -1e9 where mask==False
-        mask = input[3]
+    @torch.jit.script_method
+    def dot_product_attention(self, _query, _key, _value, _mask):
+        """
+        Compute 'Scaled Dot Product Attention
 
-        # if mask is not None:
-        #     mask = mask.unsqueeze(1)
+        :param _query: (N, h, seq_len, d_q), h is multi-head
+        :param _key: (N, h, seq_len, d_k)
+        :param _value: (N, h, seq_len, d_v)
+        :param _mask: None or (N, 1, seq_len, seq_len), 0 will be replaced with -1e9
+        :return:
+        """
 
-        nbatches = query.size(0)
+        d_k = _value.size(-1)
+        score = torch.matmul(_query, _key.transpose(-2, -1)) / math.sqrt(d_k)  # (N, h, seq_len, seq_len)
+        if _mask is not None:
+            score = score.masked_fill(_mask == 0, -1e9)  # score (N, h, seq_len, seq_len)
+        p_attn = F.softmax(score, dim=-1)
+        # (N, h, seq_len, d_v), (N, h, seq_len, seq_len)
+        return torch.matmul(p_attn, _value), p_attn
+
+    @torch.jit.script_method
+    def forward(self, _query, _key, _value, _mask):
+        batch_size = _query.size(0)
 
         # do all the linear projections in batch from d_model => h x d_k
         # (N, seq_len, d_m) -> (N, seq_len, h, d_k) -> (N, h, seq_len, d_k)
-        query, key, value = \
-            [l(x).view(nbatches, -1, self.h, self.d_k).transpose(1, 2)
-             for l, x in zip(self.linears, (query, key, value))]
+        _query, _key, _value = \
+            [l(x).view(batch_size, -1, self.h, self.d_k).transpose(1, 2)
+             for l, x in zip(self.linears, (_query, _key, _value))]
 
         # apply attention on all the projected vectors in batch.
         # (N, h, seq_len, d_v), (N, h, seq_len, seq_len)
-        x, self.attn = dot_product_attention(query, key, value, mask=mask,
-                                             dropout=self.dropout)
+        product_and_attention = self.dot_product_attention(_query, _key, _value, _mask=_mask)
+        x = product_and_attention[0]
+        # self.attention = self.dropout(product_and_attention[1])
 
         # "Concat" using a view and apply a final linear.
         # (N, seq_len, d_m)
         x = x.transpose(1, 2).contiguous() \
-            .view(nbatches, -1, self.h * self.d_k)
+            .view(batch_size, -1, self.h * self.d_k)
 
         # (N, seq_len, d_m)
         return self.linears[-1](x)
 
 
 class PositionwiseFeedForward(nn.Module):
-    def __init__(self, d_model, d_ff, dropout=0.1):
-        """
-
-        :param d_model:
-        :param d_ff:
-        :param dropout:
-        """
+    def __init__(self, _dimensions, _feed_forward_dimensions, _dropout=0.1):
         super(PositionwiseFeedForward, self).__init__()
-        self.w_1 = nn.Linear(d_model, d_ff)
-        self.w_2 = nn.Linear(d_ff, d_model)
-        self.dropout = nn.Dropout(p=dropout)
+        self.w_1 = nn.Linear(_dimensions, _feed_forward_dimensions)
+        self.w_2 = nn.Linear(_feed_forward_dimensions, _dimensions)
+        self.dropout = nn.Dropout(p=_dropout)
 
-    def forward(self, *input):
-        x = input[0]
-        return self.w_2(self.dropout(F.relu(self.w_1(x))))
+    def forward(self, _input_tensor):
+        return self.w_2(self.dropout(F.relu(self.w_1(_input_tensor))))
 
 
-class Embeddings(nn.Module):
-    def __init__(self, d_model, vocab):
+class PositionalEncoding(torch.jit.ScriptModule):
+    """Implement the PE function."""
+
+    def __init__(self, _dimensions, _dropout=0.1, _max_len=5000):
         """
 
-        :param d_model:
-        :param vocab:
-        """
-        super(Embeddings, self).__init__()
-
-        self.lut = nn.Embedding(vocab, d_model)
-        self.d_model = d_model
-
-    def forward(self, *input):
-        x = input[0]
-        return self.lut(x) * math.sqrt(self.d_model)
-
-
-class PositionalEncoding(nn.Module):
-    "Implement the PE function."
-
-    def __init__(self, d_model, dropout=0.1, max_len=5000):
-        """
-
-        :param d_model:
-        :param dropout:
-        :param max_len:
+        :param _dimensions:
+        :param _dropout:
+        :param _max_len:
         """
         super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
+        self.dropout = nn.Dropout(p=_dropout)
 
         # Compute the positional encodings once in log space.
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len).unsqueeze(1).float()
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() *
-                             -(math.log(10000.0) / d_model))
+        pe = torch.zeros(_max_len, _dimensions)
+        position = torch.arange(0, _max_len).unsqueeze(1).float()
+        div_term = torch.exp(torch.arange(0, _dimensions, 2).float() *
+                             -(math.log(10000.0) / _dimensions))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)
         self.register_buffer('pe', pe)
 
-    def forward(self, *input):
-        x = input[0]
-        x = x + self.pe[:, :x.size(1)]  # pe 1 5000 512
-        return self.dropout(x)
+    @torch.jit.script_method
+    def forward(self, _input_tensor):
+        _input_tensor = _input_tensor + self.pe[:, :_input_tensor.size(1)]  # pe 1 5000 512
+        return self.dropout(_input_tensor)
+
+
+class Encoder(nn.Module):
+    def __init__(self, _with_encoder, _multi_heads_count, _dimensions, _stacks, _dropout, _feed_forward_size):
+        super(Encoder, self).__init__()
+        self.attention = MultiHeadAttention(_multi_heads_count, _dimensions, _dropout)
+        self.position_feed_forward = PositionwiseFeedForward(_dimensions, _feed_forward_size, _dropout)
+        self.position = PositionalEncoding(_dimensions, _dropout)
+        self.layer_norm = torch.nn.LayerNorm(_dimensions, eps=1e-6)
+        self.stacks = _stacks
+        self.dropout = Dropout(_dropout)
+        self.with_encoder = _with_encoder
+
+    def eval(self):
+        self.attention.eval()
+        self.position_feed_forward.eval()
+        self.position.eval()
+        self.layer_norm.eval()
+        self.dropout.eval()
+
+    def _generate_mask(self, _position_encode_tensor):
+        target_length = _position_encode_tensor.size(1)
+        return torch.ones((target_length, target_length), device=_position_encode_tensor.device)
+
+    def __call__(self, _input_tensor):
+        output = self.position(_input_tensor)
+        if self.with_encoder:
+            source_mask = self._generate_mask(output)
+            for i in range(self.stacks):
+                normed_output = self.layer_norm(output)
+                output = output + self.dropout(
+                    self.attention(normed_output, normed_output, normed_output, source_mask)
+                )
+                normed_output = self.layer_norm(output)
+                output = output + self.dropout(self.position_feed_forward(normed_output))
+            output = self.layer_norm(output)
+        return output
+
+
+class Decoder(nn.Module):
+    def __init__(self, _multi_heads_count, _dimensions, _stacks, _dropout, _feed_forward_size, _n_classes,
+                 _padding_symbol=0):
+        super(Decoder, self).__init__()
+        self.attention = MultiHeadAttention(_multi_heads_count, _dimensions, _dropout)
+        self.source_attention = MultiHeadAttention(_multi_heads_count, _dimensions, _dropout)
+        self.position_feed_forward = PositionwiseFeedForward(_dimensions, _feed_forward_size, _dropout)
+        self.position = PositionalEncoding(_dimensions, _dropout)
+        self.stacks = _stacks
+        self.dropout = Dropout(_dropout)
+        self.layer_norm = torch.nn.LayerNorm(_dimensions, eps=1e-6)
+        self.embedding = nn.Embedding(_n_classes, _dimensions)
+        self.sqrt_model_size = math.sqrt(_dimensions)
+        self.padding_symbol = _padding_symbol
+
+    def _generate_target_mask(self, _source, _target):
+        target_pad_mask = (_target != self.padding_symbol).unsqueeze(1).unsqueeze(3)  # (b, 1, len_src, 1)
+        target_length = _target.size(1)
+        target_sub_mask = torch.tril(
+            torch.ones((target_length, target_length), dtype=torch.uint8, device=_source.device)
+        )
+        source_mask = torch.ones((target_length, _source.size(1)), dtype=torch.uint8, device=_source.device)
+        target_mask = target_pad_mask & target_sub_mask.bool()
+        return source_mask, target_mask
+
+    def eval(self):
+        self.attention.eval()
+        self.source_attention.eval()
+        self.position_feed_forward.eval()
+        self.position.eval()
+        self.dropout.eval()
+        self.layer_norm.eval()
+        self.embedding.eval()
+
+    def __call__(self, _target_result, _memory):
+        target = self.embedding(_target_result) * self.sqrt_model_size
+        target = self.position(target)
+        source_mask, target_mask = self._generate_target_mask(_memory, _target_result)
+        output = target
+        for i in range(self.stacks):
+            normed_output = self.layer_norm(output)
+            output = output + self.dropout(
+                self.attention(normed_output, normed_output, normed_output, target_mask)
+            )
+            normed_output = self.layer_norm(output)
+            output = output + self.dropout(self.source_attention(normed_output, _memory, _memory, source_mask))
+            normed_output = self.layer_norm(output)
+            output = output + self.dropout(self.position_feed_forward(normed_output))
+        return self.layer_norm(output)
