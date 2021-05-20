@@ -16,7 +16,7 @@
         "type": "MASTER",
         "args": {
             "common_kwargs":{
-                "n_class":-1,
+                "n_class":10,
                 "with_encoder":false,
                 "model_size": 512,
                 "multiheads": 8
