@@ -6,6 +6,7 @@
 import numpy as np
 import torch
 from torch import nn
+from torch.nn import Sequential
 
 from model.backbone import ConvEmbeddingGC
 from model.transformer import Encoder, Decoder
@@ -29,6 +30,16 @@ class Generator(nn.Module):
         return self.fc(x)
 
 
+class MultiInputSequential(Sequential):
+    def forward(self, *_inputs):
+        for m_module_index, m_module in enumerate(self):
+            if m_module_index == 0:
+                m_input = m_module(*_inputs)
+            else:
+                m_input = m_module(m_input)
+        return m_input
+
+
 class MASTER(nn.Module):
     """
      A standard Encoder-Decoder MASTER architecture.
@@ -47,7 +58,7 @@ class MASTER(nn.Module):
                 nn.init.xavier_uniform_(m_parameter)
 
     def build_model(self, common_kwargs, backbone_kwargs, encoder_kwargs, decoder_kwargs):
-        target_vocabulary = common_kwargs['n_class']
+        target_vocabulary = common_kwargs['n_class'] + 4
         heads = common_kwargs['multiheads']
         dimensions = common_kwargs['model_size']
         self.conv_embedding_gc = ConvEmbeddingGC(
@@ -64,6 +75,7 @@ class MASTER(nn.Module):
             _dropout=encoder_kwargs['dropout'],
             _feed_forward_size=encoder_kwargs['feed_forward_size']
         )
+        self.encode_stage = nn.Sequential(self.conv_embedding_gc, self.encoder)
         self.decoder = Decoder(
             _multi_heads_count=heads,
             _dimensions=dimensions,
@@ -74,6 +86,7 @@ class MASTER(nn.Module):
             _padding_symbol=self.padding_symbol,
         )
         self.generator = Generator(dimensions, target_vocabulary)
+        self.decode_stage = MultiInputSequential(self.decoder, self.generator)
 
     def eval(self):
         self.conv_embedding_gc.eval()
@@ -82,15 +95,30 @@ class MASTER(nn.Module):
         self.generator.eval()
 
     def forward(self, _source, _target):
-        embedding = self.conv_embedding_gc(_source)
-        memory = self.encoder(embedding)
-        output = self.decoder(_target, memory)
-        return self.generator(output)
+        encode_stage_result = self.encode_stage(_source)
+        decode_stage_result = self.decode_stage(_target, encode_stage_result)
+        return decode_stage_result
 
     def model_parameters(self):
         model_parameters = filter(lambda p: p.requires_grad, self.parameters())
         params = sum([np.prod(p.size()) for p in model_parameters])
         return params
+
+
+def predict(_memory, _source, _decode_stage, _max_length, _sos_symbol, _padding_symbol):
+    batch_size = _source.size(0)
+    device = _source.device
+    to_return_label = \
+        torch.ones((batch_size, _max_length + 2), dtype=torch.long).to(device) * _padding_symbol
+    probabilities = torch.ones((batch_size, _max_length + 2), dtype=torch.float32).to(device)
+    to_return_label[:, 0] = _sos_symbol
+    for i in range(_max_length + 1):
+        m_label = _decode_stage(to_return_label, _memory)
+        m_probability = torch.softmax(m_label, dim=-1)
+        m_max_probs, m_next_word = torch.max(m_probability, dim=-1)
+        to_return_label[:, i + 1] = m_next_word[:, i]
+        probabilities[:, i + 1] = m_max_probs[:, i]
+    return to_return_label, probabilities
 
 
 if __name__ == '__main__':
@@ -108,15 +136,28 @@ if __name__ == '__main__':
     config = ConfigParser(json_config)
     model = MASTER(**config['model_arch']['args'])
     model.eval()
-    input_image_tensor = torch.zeros((1, 3, 32, 192), dtype=torch.float32)
+    input_image_tensor = torch.zeros((1, 3, 48, 160), dtype=torch.float32)
     input_target_label_tensor = torch.zeros((1, 100), dtype=torch.long)
     with torch.no_grad():
-        result = model(input_image_tensor, input_target_label_tensor).numpy()
-        print(result.shape)
-    traced_model = torch.jit.trace(model, (input_image_tensor, input_target_label_tensor))
-    torch.jit.save(traced_model, 'master.pt')
-    loaded_traced_model = torch.jit.load('master.pt')
+        encode_result = model.encode_stage(input_image_tensor)
+    encode_stage_traced_model = torch.jit.trace(model.encode_stage, (input_image_tensor,))
+    torch.jit.save(encode_stage_traced_model, 'master_encode.pt')
+    loaded_encode_stage_traced_model = torch.jit.load('master_encode.pt', map_location='cpu')
     with torch.no_grad():
-        loaded_model_result = loaded_traced_model(input_image_tensor, input_target_label_tensor).numpy()
-        print(loaded_model_result.shape)
-    print(np.mean(np.linalg.norm(result - loaded_model_result)))
+        loaded_model_encode_result = loaded_encode_stage_traced_model(input_image_tensor, )
+    print('encode diff', np.mean(np.linalg.norm(encode_result - loaded_model_encode_result)))
+
+    with torch.no_grad():
+        decode_result = model.decode_stage(input_target_label_tensor, encode_result)
+    decode_stage_traced_model = torch.jit.trace(model.decode_stage, (input_target_label_tensor, encode_result))
+    torch.jit.save(decode_stage_traced_model, 'master_decode.pt')
+    loaded_decode_stage_traced_model = torch.jit.load('master_decode.pt', map_location='cpu')
+    with torch.no_grad():
+        loaded_model_decode_result = loaded_decode_stage_traced_model(input_target_label_tensor, encode_result)
+    print('decode diff', np.mean(np.linalg.norm(decode_result - loaded_model_decode_result)))
+    with torch.no_grad():
+        model_label, model_label_prob = predict(encode_result, input_image_tensor, model.decode_stage, 10, 1, 0)
+        loaded_model_label, loaded_model_label_prob = predict(loaded_model_encode_result, input_image_tensor,
+                                                              loaded_decode_stage_traced_model, 10, 1, 0)
+        print(model_label.numpy(), model_label_prob.numpy())
+        print(loaded_model_label.numpy(), loaded_model_label_prob.numpy())
