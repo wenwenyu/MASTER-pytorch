@@ -17,8 +17,10 @@ def clones(_to_clone_module, _clone_times):
     return nn.ModuleList([copy.deepcopy(_to_clone_module) for _ in range(_clone_times)])
 
 
-def subsequent_mask(_size):
-    return torch.triu(torch.ones(1, _size, _size), diagonal=1) == 0
+def subsequent_mask(_target):
+    batch_size = _target.size(0)
+    sequence_length = _target.size(1)
+    return torch.tril(torch.ones((batch_size, 1, sequence_length, sequence_length), dtype=torch.bool))
 
 
 class MultiHeadAttention(torch.jit.ScriptModule):
@@ -146,7 +148,7 @@ class Encoder(nn.Module):
         target_length = _position_encode_tensor.size(1)
         return torch.ones((target_length, target_length), device=_position_encode_tensor.device)
 
-    def __call__(self, _input_tensor):
+    def forward(self, _input_tensor):
         output = self.position(_input_tensor)
         if self.with_encoder:
             source_mask = self._generate_mask(output)
@@ -195,7 +197,7 @@ class Decoder(nn.Module):
         self.layer_norm.eval()
         self.embedding.eval()
 
-    def __call__(self, _target_result, _memory):
+    def forward(self, _target_result, _memory):
         target = self.embedding(_target_result) * self.sqrt_model_size
         target = self.position(target)
         source_mask, target_mask = self._generate_target_mask(_memory, _target_result)
