@@ -131,9 +131,11 @@ if __name__ == '__main__':
     ag.add_argument('--config_path', type=str, required=True, help='配置文件地址')
     ag.add_argument('--checkpoint', type=str, required=False, help='训练好的模型的地址，没有的话就不加载')
     ag.add_argument('--target_directory', type=str, required=False, help='输出的pt文件的文件夹')
+    ag.add_argument('--target_device', type=str, default='cuda:0', required=False, help='导出模型的设备')
     args = ag.parse_args()
 
     config_file_path = args.config_path
+    device = args.target_device
     target_output_directory = args.target_directory
     with open(config_file_path, mode='r') as to_read_config_file:
         json_config = json.loads(to_read_config_file.read())
@@ -142,32 +144,35 @@ if __name__ == '__main__':
     if args.checkpoint:
         checkpoint = torch.load(args.checkpoint, map_location='cpu')['model_state_dict']
         model.load_state_dict(checkpoint)
-
+    model.to(device)
     model.eval()
-    input_image_tensor = torch.zeros((1, 3, 48, 160), dtype=torch.float32)
-    input_target_label_tensor = torch.zeros((1, 100), dtype=torch.long)
+    input_image_tensor = torch.zeros((1, 3, 48, 160), dtype=torch.float32).to(device)
+    input_target_label_tensor = torch.zeros((1, 100), dtype=torch.long).to(device)
     with torch.no_grad():
         encode_result = model.encode_stage(input_image_tensor)
     encode_stage_traced_model = torch.jit.trace(model.encode_stage, (input_image_tensor,))
     encode_traced_model_path = os.path.join(target_output_directory, 'master_encode.pt')
     torch.jit.save(encode_stage_traced_model, encode_traced_model_path)
-    loaded_encode_stage_traced_model = torch.jit.load(encode_traced_model_path, map_location='cpu')
+    loaded_encode_stage_traced_model = torch.jit.load(encode_traced_model_path, map_location=device)
     with torch.no_grad():
         loaded_model_encode_result = loaded_encode_stage_traced_model(input_image_tensor, )
-    print('encode diff', np.mean(np.linalg.norm(encode_result - loaded_model_encode_result)))
+    print('encode diff', np.mean(np.linalg.norm(encode_result.cpu().numpy() - loaded_model_encode_result.cpu().numpy())))
 
     with torch.no_grad():
-        decode_result = model.decode_stage(input_target_label_tensor, encode_result)
+        decode_result = model.decode_stage(input_target_label_tensor, encode_result).cpu().numpy()
     decode_stage_traced_model = torch.jit.trace(model.decode_stage, (input_target_label_tensor, encode_result))
     decode_traced_model_path = os.path.join(target_output_directory, 'master_decode.pt')
     torch.jit.save(decode_stage_traced_model, decode_traced_model_path)
-    loaded_decode_stage_traced_model = torch.jit.load(decode_traced_model_path, map_location='cpu')
+    loaded_decode_stage_traced_model = torch.jit.load(decode_traced_model_path, map_location=device)
     with torch.no_grad():
-        loaded_model_decode_result = loaded_decode_stage_traced_model(input_target_label_tensor, encode_result)
+        loaded_model_decode_result = loaded_decode_stage_traced_model(
+            input_target_label_tensor,
+            encode_result,
+        ).cpu().numpy()
     print('decode diff', np.mean(np.linalg.norm(decode_result - loaded_model_decode_result)))
     with torch.no_grad():
         model_label, model_label_prob = predict(encode_result, input_image_tensor, model.decode_stage, 10, 1, 0)
         loaded_model_label, loaded_model_label_prob = predict(loaded_model_encode_result, input_image_tensor,
                                                               loaded_decode_stage_traced_model, 10, 1, 0)
-        print(model_label.numpy(), model_label_prob.numpy())
-        print(loaded_model_label.numpy(), loaded_model_label_prob.numpy())
+        print(model_label.cpu().numpy(), model_label_prob.cpu().numpy())
+        print(loaded_model_label.cpu().numpy(), loaded_model_label_prob.cpu().numpy())
