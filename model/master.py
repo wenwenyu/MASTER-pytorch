@@ -124,25 +124,34 @@ def predict(_memory, _source, _decode_stage, _max_length, _sos_symbol, _padding_
 if __name__ == '__main__':
     from parse_config import ConfigParser
     import json
+    import os
     import argparse
 
-    ag = argparse.ArgumentParser('Master Test Example')
+    ag = argparse.ArgumentParser('Master Export Example')
     ag.add_argument('--config_path', type=str, required=True, help='配置文件地址')
+    ag.add_argument('--checkpoint', type=str, required=False, help='训练好的模型的地址，没有的话就不加载')
+    ag.add_argument('--target_directory', type=str, required=False, help='输出的pt文件的文件夹')
     args = ag.parse_args()
 
     config_file_path = args.config_path
+    target_output_directory = args.target_directory
     with open(config_file_path, mode='r') as to_read_config_file:
         json_config = json.loads(to_read_config_file.read())
     config = ConfigParser(json_config)
     model = MASTER(**config['model_arch']['args'])
+    if args.checkpoint:
+        checkpoint = torch.load(args.checkpoint, map_location='cpu')['model_state_dict']
+        model.load_state_dict(checkpoint)
+
     model.eval()
     input_image_tensor = torch.zeros((1, 3, 48, 160), dtype=torch.float32)
     input_target_label_tensor = torch.zeros((1, 100), dtype=torch.long)
     with torch.no_grad():
         encode_result = model.encode_stage(input_image_tensor)
     encode_stage_traced_model = torch.jit.trace(model.encode_stage, (input_image_tensor,))
-    torch.jit.save(encode_stage_traced_model, 'master_encode.pt')
-    loaded_encode_stage_traced_model = torch.jit.load('master_encode.pt', map_location='cpu')
+    encode_traced_model_path = os.path.join(target_output_directory, 'master_encode.pt')
+    torch.jit.save(encode_stage_traced_model, encode_traced_model_path)
+    loaded_encode_stage_traced_model = torch.jit.load(encode_traced_model_path, map_location='cpu')
     with torch.no_grad():
         loaded_model_encode_result = loaded_encode_stage_traced_model(input_image_tensor, )
     print('encode diff', np.mean(np.linalg.norm(encode_result - loaded_model_encode_result)))
@@ -150,8 +159,9 @@ if __name__ == '__main__':
     with torch.no_grad():
         decode_result = model.decode_stage(input_target_label_tensor, encode_result)
     decode_stage_traced_model = torch.jit.trace(model.decode_stage, (input_target_label_tensor, encode_result))
-    torch.jit.save(decode_stage_traced_model, 'master_decode.pt')
-    loaded_decode_stage_traced_model = torch.jit.load('master_decode.pt', map_location='cpu')
+    decode_traced_model_path = os.path.join(target_output_directory, 'master_decode.pt')
+    torch.jit.save(decode_stage_traced_model, decode_traced_model_path)
+    loaded_decode_stage_traced_model = torch.jit.load(decode_traced_model_path, map_location='cpu')
     with torch.no_grad():
         loaded_model_decode_result = loaded_decode_stage_traced_model(input_target_label_tensor, encode_result)
     print('decode diff', np.mean(np.linalg.norm(decode_result - loaded_model_decode_result)))
