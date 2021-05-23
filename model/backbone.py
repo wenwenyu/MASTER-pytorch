@@ -4,7 +4,7 @@
 
 from torch import nn
 
-from .context_block import MultiAspectGCAttention
+from model.context_block import MultiAspectGCAttention
 
 
 # CNN for Feature Extraction + Multi-Aspect GCAttention

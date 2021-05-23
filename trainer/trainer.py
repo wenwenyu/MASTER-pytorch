@@ -312,9 +312,9 @@ class Trainer:
                 self.logger_info(
                     '[Step Validation] Epoch:[{}/{}] Step:[{}/{}] Word_acc: {:.6f} Word_acc_case_ins {:.6f}'
                     'Edit_distance_acc: {:.6f}'.
-                    format(epoch, self.epochs, step_idx, self.len_step,
-                           val_metric_res_dict['word_acc'], val_metric_res_dict['word_acc_case_insensitive'],
-                           val_metric_res_dict['edit_distance_acc']))
+                        format(epoch, self.epochs, step_idx, self.len_step,
+                               val_metric_res_dict['word_acc'], val_metric_res_dict['word_acc_case_insensitive'],
+                               val_metric_res_dict['edit_distance_acc']))
                 # check if best metric, if true, then save as model_best checkpoint.
                 best, not_improved_count = self._is_best_monitor_metric(False, 0, val_metric_res_dict,
                                                                         update_not_improved_count=False)
@@ -361,10 +361,11 @@ class Trainer:
                         model = self.model
 
                     # (bs, max_len)
-                    outputs = decode_util.greedy_decode(model, images, LabelTransformer.max_length,
-                                                        LabelTransformer.SOS,
-                                                        padding_symbol=LabelTransformer.PAD, device=images.device,
-                                                        padding=True)
+                    outputs, _ = decode_util.greedy_decode_with_probability(model, images, LabelTransformer.max_length,
+                                                                            LabelTransformer.SOS,
+                                                                            _padding_symbol_index=LabelTransformer.PAD,
+                                                                            _result_device=images.device,
+                                                                            _is_padding=True)
                     correct = 0
                     correct_case_ins = 0
                     total_distance_ref = 0
@@ -431,10 +432,11 @@ class Trainer:
                     model = self.model.module
                 else:
                     model = self.model
-                outputs = decode_util.greedy_decode(model, images, LabelTransformer.max_length, LabelTransformer.SOS,
-                                                    padding_symbol=LabelTransformer.PAD,
-                                                    device=images.device,
-                                                    padding=True)
+                outputs, _ = decode_util.greedy_decode_with_probability(model, images, LabelTransformer.max_length,
+                                                                        LabelTransformer.SOS,
+                                                                        _padding_symbol_index=LabelTransformer.PAD,
+                                                                        _result_device=images.device,
+                                                                        _is_padding=True)
 
                 for index, (pred, text_gold) in enumerate(zip(outputs[:, 1:], text_label)):
                     predict_text = ""

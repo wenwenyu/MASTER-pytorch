@@ -29,11 +29,11 @@ class ConfigParser:
         self._config = _update_config(config, modification)
         self.resume = resume
         # str to bool, from modification or from default json file
-        self.update_config('distributed', (self.config['distributed']=='true') or self.config['distributed']==True)
-        self.update_config('finetune', (self.config['finetune']=='true') or self.config['finetune']==True)
+        self.update_config('distributed', (self.config['distributed'] == 'true') or self.config['distributed'] is True)
+        self.update_config('finetune', (self.config['finetune'] == 'true') or self.config['finetune'] is True)
 
-        if (self.config['local_rank'] == 0 and self.config['distributed'])\
-                or (not self.config['distributed']): # only local master process create saved output dir
+        if (self.config['local_rank'] == 0 and self.config['distributed']) \
+                or (not self.config['distributed']):  # only local master process create saved output dir
             # set save_dir where trained model and log will be saved.
             save_dir = Path(self.config['trainer']['save_dir'])
 
@@ -67,7 +67,7 @@ class ConfigParser:
         Initialize this class from some cli arguments. Used in train, test.
         """
         for opt in options:
-            args.add_argument(*opt.flags, default=opt.default, type=opt.type, help = opt.help)
+            args.add_argument(*opt.flags, default=opt.default, type=opt.type, help=opt.help)
         if not isinstance(args, tuple):
             args = args.parse_args()
 
@@ -88,11 +88,11 @@ class ConfigParser:
             config.update(read_json(args.config))
         try:
             if args.distributed is not None:
-                config['distributed'] = (args.distributed =='true')
-                if not config['distributed']: # change to one gpu or cpu mode if not distributed setting.
+                config['distributed'] = (args.distributed == 'true')
+                if not config['distributed']:  # change to one gpu or cpu mode if not distributed setting.
                     config['local_world_size'] = 1
             if args.finetune is not None:
-                config['finetune'] = (args.finetune =='true')
+                config['finetune'] = (args.finetune == 'true')
         except Exception:
             pass
         # parse custom cli options into dictionary
@@ -134,7 +134,7 @@ class ConfigParser:
         return self.config[name]
 
     def update_config(self, key, value):
-        '''Set config value ike ordinary dict. '''
+        """Set config value ike ordinary dict. """
         self.config[key] = value
 
     def get_logger(self, name, verbosity=2):
@@ -161,6 +161,7 @@ class ConfigParser:
     # @property
     # def log_levels(self):
     #     return self._log_levels
+
 
 # helper functions to update config dict with custom cli options
 def _update_config(config, modification):
