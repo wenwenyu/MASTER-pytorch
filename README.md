@@ -21,6 +21,8 @@ is now integrated MASTER for captcha recognition. Thanks [Tao Luo](https://githu
 application.\*\*\*\*\***
 
 ## Honors based on MASTER
+* 1st place (2021/05) solution to [ICDAR 2021 Competition on Scientific Table Image Recognition to LaTeX (Subtask I: Table structure reconstruction)](https://competitions.codalab.org/competitions/26979)
+* 1st place (2021/05) solution to [ICDAR 2021 Competition on Scientific Table Image Recognition to LaTeX (Subtask II: Table content reconstruction)](https://competitions.codalab.org/competitions/26979)
 * 2nd place (2021/05) solution to [ICDAR 2021 Competition on Scientific Literature Parsing Task B: Table recognition](https://icdar2021.org/program-2/competitions/competition-on-scientific-literature-parsing/)
 * 1st place (2020/10) solution to [ICDAR 2019 Robust Reading Challenge on Reading Chinese Text on Signboard (task2)](https://rrc.cvc.uab.es/?ch=12&com=evaluation&task=2)
 * 2nd and 5th places (2020/10) in [The 5th China Innovation Challenge on Handwritten Mathematical Expression Recognition](https://www.heywhale.com/home/competition/5f703ac023f41e002c3ed5e4/content/6)
