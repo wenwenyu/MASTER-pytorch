@@ -139,6 +139,7 @@ if __name__ == '__main__':
     config_file_path = args.config_path
     device = args.target_device
     target_output_directory = args.target_directory
+    os.makedirs(target_output_directory,exist_ok=True)
     with open(config_file_path, mode='r') as to_read_config_file:
         json_config = json.loads(to_read_config_file.read())
     config = ConfigParser(json_config)
@@ -148,7 +149,7 @@ if __name__ == '__main__':
         model.load_state_dict(checkpoint)
     model.to(device)
     model.eval()
-    input_image_tensor = torch.zeros((1, 3, 48, 160), dtype=torch.float32).to(device)
+    input_image_tensor = torch.zeros((1, 3, 100, 150), dtype=torch.float32).to(device)
     input_target_label_tensor = torch.zeros((1, 100), dtype=torch.long).to(device)
     with torch.no_grad():
         encode_result = model.encode_stage(input_image_tensor)
@@ -158,7 +159,8 @@ if __name__ == '__main__':
     loaded_encode_stage_traced_model = torch.jit.load(encode_traced_model_path, map_location=device)
     with torch.no_grad():
         loaded_model_encode_result = loaded_encode_stage_traced_model(input_image_tensor, )
-    print('encode diff', np.mean(np.linalg.norm(encode_result.cpu().numpy() - loaded_model_encode_result.cpu().numpy())))
+    print('encode diff',
+          np.mean(np.linalg.norm(encode_result.cpu().numpy() - loaded_model_encode_result.cpu().numpy())))
 
     with torch.no_grad():
         decode_result = model.decode_stage(input_target_label_tensor, encode_result).cpu().numpy()
@@ -173,8 +175,8 @@ if __name__ == '__main__':
         ).cpu().numpy()
     print('decode diff', np.mean(np.linalg.norm(decode_result - loaded_model_decode_result)))
     with torch.no_grad():
-        model_label, model_label_prob = predict(encode_result, input_image_tensor, model.decode_stage, 10, 1, 0)
+        model_label, model_label_prob = predict(encode_result, input_image_tensor, model.decode_stage, 10,2,1, 0)
         loaded_model_label, loaded_model_label_prob = predict(loaded_model_encode_result, input_image_tensor,
-                                                              loaded_decode_stage_traced_model, 10, 1, 0)
+                                                              loaded_decode_stage_traced_model, 10,2, 1, 0)
         print(model_label.cpu().numpy(), model_label_prob.cpu().numpy())
         print(loaded_model_label.cpu().numpy(), loaded_model_label_prob.cpu().numpy())
