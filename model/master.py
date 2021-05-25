@@ -105,7 +105,7 @@ class MASTER(nn.Module):
         return params
 
 
-def predict(_memory, _source, _decode_stage, _max_length, _sos_symbol, _padding_symbol):
+def predict(_memory, _source, _decode_stage, _max_length, _sos_symbol, _eos_symbol, _padding_symbol):
     batch_size = _source.size(0)
     device = _source.device
     to_return_label = \
@@ -116,6 +116,8 @@ def predict(_memory, _source, _decode_stage, _max_length, _sos_symbol, _padding_
         m_label = _decode_stage(to_return_label, _memory)
         m_probability = torch.softmax(m_label, dim=-1)
         m_max_probs, m_next_word = torch.max(m_probability, dim=-1)
+        if m_next_word[:, i] == _eos_symbol:
+            break
         to_return_label[:, i + 1] = m_next_word[:, i]
         probabilities[:, i + 1] = m_max_probs[:, i]
     return to_return_label, probabilities
