@@ -8,6 +8,7 @@ import io
 import math
 import json
 
+import cv2
 from PIL import Image
 import numpy as np
 import lmdb
@@ -19,6 +20,7 @@ from torch.utils.data import sampler
 from torch.utils.data.sampler import Sampler
 import torchvision.transforms as transforms
 
+from utils.GeometryUtils import resize_with_height, pad_image_with_specific_base
 from utils.label_util import LabelTransformer
 
 
@@ -177,6 +179,7 @@ class JSONDataset(Dataset):
         except Exception as read_e:
             return self.__getitem__(np.random.randint(self.__len__()))
 
+
 class LmdbDataset(Dataset):
     def __init__(self, lmdb_dir_root=None, transform=None, target_transform=None, training=True, img_w=256,
                  img_h=32, case_sensitive=True,
@@ -292,6 +295,7 @@ class LmdbVer2Dataset(Dataset):
             MJ_test
             MJ_valid
     """
+
     def __init__(self, lmdb_dir_root=None, transform=None, target_transform=None, training=True, img_w=256,
                  img_h=32, case_sensitive=True,
                  convert_to_gray=True):
@@ -373,6 +377,7 @@ class LmdbVer2Dataset(Dataset):
                 return (img, image_key)
         except Exception as read_e:
             return self.__getitem__(np.random.randint(self.__len__()))
+
 
 def get_datasets_image_label_with_txt_file(txt_file, img_root, split=','):
     image_names = []
@@ -477,6 +482,25 @@ class ResizeWeight(object):
             img = self.toTensor(img)
             img.sub_(0.5).div_(0.5)
             return img, width / self.w
+
+
+class CustomImagePreprocess:
+    def __init__(self, _target_height, _target_width, _is_gray):
+        self.target_height, self.target_width = _target_height, _target_width
+        self.is_gray = _is_gray
+
+    def __call__(self, _img: Image.Image):
+        if self.is_gray:
+            img = _img.convert('L')
+        else:
+            img = _img
+        img_np = np.asarray(img)
+        h, w = img_np.shape[:2]
+        resized_img = cv2.resize(img_np, (self.target_width, self.target_height))
+        full_channel_img = resized_img[..., None] if len(resized_img.shape) == 2 else resized_img
+        resized_img_tensor = torch.from_numpy(np.transpose(full_channel_img, (2, 0, 1))).to(torch.float32)
+        resized_img_tensor.sub_(127.5).div_(127.5)
+        return resized_img_tensor, w / self.target_width
 
 
 class DistCollateFn(object):
