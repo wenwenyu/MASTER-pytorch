@@ -12,9 +12,10 @@ from torch import nn
 from torch.nn import Dropout
 
 
-def clones(_to_clone_module, _clone_times):
+def clones(_to_clone_module, _clone_times, _is_deep=True):
     """Produce N identical layers."""
-    return nn.ModuleList([copy.deepcopy(_to_clone_module) for _ in range(_clone_times)])
+    copy_method = copy.deepcopy if _is_deep else copy.copy
+    return nn.ModuleList([copy_method(_to_clone_module) for _ in range(_clone_times if _is_deep else 1)])
 
 
 def subsequent_mask(_target):
@@ -127,10 +128,18 @@ class PositionalEncoding(torch.jit.ScriptModule):
 
 
 class Encoder(nn.Module):
-    def __init__(self, _with_encoder, _multi_heads_count, _dimensions, _stacks, _dropout, _feed_forward_size):
+    def __init__(self, _with_encoder, _multi_heads_count, _dimensions, _stacks, _dropout, _feed_forward_size,
+                 _share_parameter=True):
         super(Encoder, self).__init__()
-        self.attention = MultiHeadAttention(_multi_heads_count, _dimensions, _dropout)
-        self.position_feed_forward = PositionwiseFeedForward(_dimensions, _feed_forward_size, _dropout)
+        self.share_parameter = _share_parameter
+        self.attention = nn.ModuleList([
+            MultiHeadAttention(_multi_heads_count, _dimensions, _dropout)
+            for _ in range(1 if _share_parameter else _stacks)
+        ])
+        self.position_feed_forward = nn.ModuleList([
+            PositionwiseFeedForward(_dimensions, _feed_forward_size, _dropout)
+            for _ in range(1 if _share_parameter else _stacks)
+        ])
         self.position = PositionalEncoding(_dimensions, _dropout)
         self.layer_norm = torch.nn.LayerNorm(_dimensions, eps=1e-6)
         self.stacks = _stacks
@@ -153,23 +162,34 @@ class Encoder(nn.Module):
         if self.with_encoder:
             source_mask = self._generate_mask(output)
             for i in range(self.stacks):
+                actual_i = 0 if self.share_parameter else i
                 normed_output = self.layer_norm(output)
                 output = output + self.dropout(
-                    self.attention(normed_output, normed_output, normed_output, source_mask)
+                    self.attention[actual_i](normed_output, normed_output, normed_output, source_mask)
                 )
                 normed_output = self.layer_norm(output)
-                output = output + self.dropout(self.position_feed_forward(normed_output))
+                output = output + self.dropout(self.position_feed_forward[actual_i](normed_output))
             output = self.layer_norm(output)
         return output
 
 
 class Decoder(nn.Module):
     def __init__(self, _multi_heads_count, _dimensions, _stacks, _dropout, _feed_forward_size, _n_classes,
-                 _padding_symbol=0):
+                 _padding_symbol=0, _share_parameter=True):
         super(Decoder, self).__init__()
-        self.attention = MultiHeadAttention(_multi_heads_count, _dimensions, _dropout)
-        self.source_attention = MultiHeadAttention(_multi_heads_count, _dimensions, _dropout)
-        self.position_feed_forward = PositionwiseFeedForward(_dimensions, _feed_forward_size, _dropout)
+        self.share_parameter = _share_parameter
+        self.attention = nn.ModuleList([
+            MultiHeadAttention(_multi_heads_count, _dimensions, _dropout)
+            for _ in range(1 if _share_parameter else _stacks)
+        ])
+        self.source_attention = nn.ModuleList([
+            MultiHeadAttention(_multi_heads_count, _dimensions, _dropout)
+            for _ in range(1 if _share_parameter else _stacks)
+        ])
+        self.position_feed_forward = nn.ModuleList([
+            PositionwiseFeedForward(_dimensions, _feed_forward_size, _dropout)
+            for _ in range(1 if _share_parameter else _stacks)
+        ])
         self.position = PositionalEncoding(_dimensions, _dropout)
         self.stacks = _stacks
         self.dropout = Dropout(_dropout)
@@ -203,12 +223,14 @@ class Decoder(nn.Module):
         source_mask, target_mask = self._generate_target_mask(_memory, _target_result)
         output = target
         for i in range(self.stacks):
+            actual_i = 0 if self.share_parameter else i
             normed_output = self.layer_norm(output)
             output = output + self.dropout(
-                self.attention(normed_output, normed_output, normed_output, target_mask)
+                self.attention[actual_i](normed_output, normed_output, normed_output, target_mask)
             )
             normed_output = self.layer_norm(output)
-            output = output + self.dropout(self.source_attention(normed_output, _memory, _memory, source_mask))
+            output = output + self.dropout(
+                self.source_attention[actual_i](normed_output, _memory, _memory, source_mask))
             normed_output = self.layer_norm(output)
-            output = output + self.dropout(self.position_feed_forward(normed_output))
+            output = output + self.dropout(self.position_feed_forward[actual_i](normed_output))
         return self.layer_norm(output)

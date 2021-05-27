@@ -73,7 +73,8 @@ class MASTER(nn.Module):
             _dimensions=dimensions,
             _stacks=encoder_kwargs['stacks'],
             _dropout=encoder_kwargs['dropout'],
-            _feed_forward_size=encoder_kwargs['feed_forward_size']
+            _feed_forward_size=encoder_kwargs['feed_forward_size'],
+            _share_parameter=encoder_kwargs.get('share_parameter','false'),
         )
         self.encode_stage = nn.Sequential(self.conv_embedding_gc, self.encoder)
         self.decoder = Decoder(
@@ -84,6 +85,7 @@ class MASTER(nn.Module):
             _feed_forward_size=decoder_kwargs['feed_forward_size'],
             _n_classes=target_vocabulary,
             _padding_symbol=self.padding_symbol,
+            _share_parameter=decoder_kwargs.get('share_parameter','false')
         )
         self.generator = Generator(dimensions, target_vocabulary)
         self.decode_stage = MultiInputSequential(self.decoder, self.generator)
@@ -132,7 +134,7 @@ if __name__ == '__main__':
     ag = argparse.ArgumentParser('Master Export Example')
     ag.add_argument('--config_path', type=str, required=True, help='配置文件地址')
     ag.add_argument('--checkpoint', type=str, required=False, help='训练好的模型的地址，没有的话就不加载')
-    ag.add_argument('--target_directory', type=str, required=False, help='输出的pt文件的文件夹')
+    ag.add_argument('--target_directory', type=str, required=True, help='输出的pt文件的文件夹')
     ag.add_argument('--target_device', type=str, default='cuda:0', required=False, help='导出模型的设备')
     args = ag.parse_args()
 
