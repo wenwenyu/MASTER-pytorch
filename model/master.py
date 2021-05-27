@@ -74,7 +74,7 @@ class MASTER(nn.Module):
             _stacks=encoder_kwargs['stacks'],
             _dropout=encoder_kwargs['dropout'],
             _feed_forward_size=encoder_kwargs['feed_forward_size'],
-            _share_parameter=encoder_kwargs.get('share_parameter','false'),
+            _share_parameter=encoder_kwargs.get('share_parameter', 'false'),
         )
         self.encode_stage = nn.Sequential(self.conv_embedding_gc, self.encoder)
         self.decoder = Decoder(
@@ -85,7 +85,7 @@ class MASTER(nn.Module):
             _feed_forward_size=decoder_kwargs['feed_forward_size'],
             _n_classes=target_vocabulary,
             _padding_symbol=self.padding_symbol,
-            _share_parameter=decoder_kwargs.get('share_parameter','false')
+            _share_parameter=decoder_kwargs.get('share_parameter', 'false')
         )
         self.generator = Generator(dimensions, target_vocabulary)
         self.decode_stage = MultiInputSequential(self.decoder, self.generator)
@@ -118,10 +118,16 @@ def predict(_memory, _source, _decode_stage, _max_length, _sos_symbol, _eos_symb
         m_label = _decode_stage(to_return_label, _memory)
         m_probability = torch.softmax(m_label, dim=-1)
         m_max_probs, m_next_word = torch.max(m_probability, dim=-1)
-        if m_next_word[:, i] == _eos_symbol:
-            break
         to_return_label[:, i + 1] = m_next_word[:, i]
         probabilities[:, i + 1] = m_max_probs[:, i]
+    eos_position_y, eos_position_x = torch.nonzero(to_return_label == _eos_symbol,as_tuple=True)
+    eos_position_y_index = eos_position_y[0]
+    for m_position_y, m_position_x in zip(eos_position_y, eos_position_x):
+        if eos_position_y_index == m_position_y:
+            to_return_label[m_position_y, m_position_x + 1:] = _padding_symbol
+            probabilities[m_position_y, m_position_x + 1:] = 1
+            eos_position_y_index += 1
+
     return to_return_label, probabilities
 
 
@@ -141,7 +147,7 @@ if __name__ == '__main__':
     config_file_path = args.config_path
     device = args.target_device
     target_output_directory = args.target_directory
-    os.makedirs(target_output_directory,exist_ok=True)
+    os.makedirs(target_output_directory, exist_ok=True)
     with open(config_file_path, mode='r') as to_read_config_file:
         json_config = json.loads(to_read_config_file.read())
     config = ConfigParser(json_config)
@@ -177,8 +183,8 @@ if __name__ == '__main__':
         ).cpu().numpy()
     print('decode diff', np.mean(np.linalg.norm(decode_result - loaded_model_decode_result)))
     with torch.no_grad():
-        model_label, model_label_prob = predict(encode_result, input_image_tensor, model.decode_stage, 10,2,1, 0)
+        model_label, model_label_prob = predict(encode_result, input_image_tensor, model.decode_stage, 10, 2, 1, 0)
         loaded_model_label, loaded_model_label_prob = predict(loaded_model_encode_result, input_image_tensor,
-                                                              loaded_decode_stage_traced_model, 10,2, 1, 0)
+                                                              loaded_decode_stage_traced_model, 10, 2, 1, 0)
         print(model_label.cpu().numpy(), model_label_prob.cpu().numpy())
         print(loaded_model_label.cpu().numpy(), loaded_model_label_prob.cpu().numpy())
