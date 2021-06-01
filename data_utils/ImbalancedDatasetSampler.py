@@ -24,7 +24,7 @@ class ImbalancedDatasetSampler(Sampler):
             print(f'char:{m_label},count:{m_count},ratio:{round(m_count * 100 / total_characters, 2)}%')
         weights = []
         for m_label in all_labels:
-            weights.append(len(m_label) / sum([character_counter.get(m_char) for m_char in m_label]))
+            weights.append(total_characters/(sum([character_counter.get(m_char) for m_char in m_label])/len(m_label)))
         self.weights = torch.DoubleTensor(weights)
 
     def _get_labels(self, _dataset):
