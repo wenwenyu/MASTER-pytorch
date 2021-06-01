@@ -242,23 +242,7 @@ class Trainer:
             target = LabelTransformer.encode(text_label)
             target = target.to(self.device)
             target = target.permute(1, 0)
-
-            if self.config['trainer']['anomaly_detection']:
-                # This mode will increase the runtime and should only be enabled for debugging
-                with torch.autograd.detect_anomaly():
-                    # forward
-                    outputs = self.model(images, target[:, :-1])  # need to remove <EOS> in target
-                    loss = F.cross_entropy(outputs.contiguous().view(-1, outputs.shape[-1]),
-                                           target[:, 1:].contiguous().view(-1),  # need to remove <SOS> in target
-                                           ignore_index=LabelTransformer.PAD)
-
-                    # backward and update parameters
-                    self.optimizer.zero_grad()
-                    loss.backward()
-                    # self.average_gradients(self.model)
-                    self.optimizer.step()
-            else:
-                # forward
+            with torch.autograd.set_detect_anomaly(self.config['trainer']['anomaly_detection']):
                 outputs = self.model(images, target[:, :-1])  # need to remove <EOS> in target
                 loss = F.cross_entropy(outputs.contiguous().view(-1, outputs.shape[-1]),
                                        target[:, 1:].contiguous().view(-1),  # need to remove <SOS> in target
