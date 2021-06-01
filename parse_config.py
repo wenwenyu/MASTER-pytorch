@@ -75,14 +75,17 @@ class ConfigParser:
             os.environ["CUDA_VISIBLE_DEVICES"] = args.device
         if args.resume is not None:
             resume = Path(args.resume)
-            cfg_fname = resume.parent / 'config.json'
+            if args.config is None:
+                config_file_path = resume.parent / 'config.json'
+            else:
+                config_file_path = args.config
         else:
             msg_no_cfg = "Configuration file need to be specified. Add '-c config.json', for example."
             assert args.config is not None, msg_no_cfg
             resume = None
-            cfg_fname = Path(args.config)
+            config_file_path = Path(args.config)
 
-        config = read_json(cfg_fname)
+        config = read_json(config_file_path)
         if args.config and resume and args.finetune == 'false':
             # update new config for resume (continue train), finetune mode will don not use previous config
             config.update(read_json(args.config))
