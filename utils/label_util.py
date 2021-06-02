@@ -1,24 +1,15 @@
 # -*- coding: utf-8 -*-
 # @Author: Wenwen Yu
 # @Created Time: 10/4/2020 14:24
-
 import collections
 from pathlib import Path
 
 import torch
-import torch.nn as nn
-from torch.autograd import Variable
-
-# from .keys import keys
 
 STRING_MAX_LEN = 100
 VOCABULARY_FILE_NAME = 'keys.txt'
 
-
-class LabelConverterForMASTER(object):
-    """Convert between str and label index.
-    """
-
+class LabelConverterForMASTER:
     def __init__(self, classes, max_length=-1, ignore_over=False):
         """
 
@@ -45,20 +36,17 @@ class LabelConverterForMASTER(object):
             cls_list = classes
 
         self.alphabet = cls_list
-        self.dict = {}
-
-        self.dict['<EOS>'] = 1  # start
-        self.dict['<SOS>'] = 2
-        self.dict['<PAD>'] = 0
-        self.dict['<UNK>'] = 3
+        self.alphabet_mapper = {'<EOS>': 1, '<SOS>': 2, '<PAD>': 0, '<UNK>': 3}
+        # start of sequence
+        # end of sequence
         for i, item in enumerate(self.alphabet):
-            self.dict[item] = i + 4  # index start from 4
-        self.inverse_dict = {v: k for k, v in self.dict.items()}
+            self.alphabet_mapper[item] = i + 4
+        self.alphabet_inverse_mapper = {v: k for k, v in self.alphabet_mapper.items()}
 
-        self.EOS = self.dict['<EOS>']
-        self.SOS = self.dict['<SOS>']
-        self.PAD = self.dict['<PAD>']
-        self.UNK = self.dict['<UNK>']
+        self.EOS = self.alphabet_mapper['<EOS>']
+        self.SOS = self.alphabet_mapper['<SOS>']
+        self.PAD = self.alphabet_mapper['<PAD>']
+        self.UNK = self.alphabet_mapper['<UNK>']
 
         self.nclass = len(self.alphabet) + 4
         self.max_length = max_length
@@ -72,7 +60,7 @@ class LabelConverterForMASTER(object):
             torch.LongTensor targets:max_length × batch_size
         """
         if isinstance(text, str):
-            text = [self.dict[item] if item in self.alphabet else self.UNK for item in text]
+            text = [self.alphabet_mapper[item] if item in self.alphabet else self.UNK for item in text]
         elif isinstance(text, collections.Iterable):
             text = [self.encode(s) for s in text]  # encode
 
@@ -113,9 +101,9 @@ class LabelConverterForMASTER(object):
 
         # texts = list(self.dict.keys())[list(self.dict.values()).index(t)]
         if isinstance(t, torch.Tensor):
-            texts = self.inverse_dict[t.item()]
+            texts = self.alphabet_inverse_mapper[t.item()]
         else:
-            texts = self.inverse_dict[t]
+            texts = self.alphabet_inverse_mapper[t]
         return texts
 
 
