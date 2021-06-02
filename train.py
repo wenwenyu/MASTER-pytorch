@@ -2,20 +2,20 @@
 # @Author: Wenwen Yu
 # @Created Time: 7/12/2020 11:29 PM
 
-import os
 import argparse
 import collections
+import os
 import random
 
 import numpy as np
 import torch
 import torch.distributed as dist
+import torch.utils.data
 
-import model.master as master_arch
 import data_utils.datasets as master_dataset
-from data_utils.datasets import ResizeWeight
+import model.master as master_arch
+from data_utils.ImbalancedDatasetSampler import ImbalancedDatasetSampler
 from data_utils.datasets import DistValSampler, DistCollateFn
-
 from parse_config import ConfigParser
 from trainer import Trainer
 
@@ -33,12 +33,12 @@ def main(config: ConfigParser, local_master: bool, logger=None):
     in_channels = config['model_arch']['args']['backbone_kwargs']['in_channels']
     convert_to_gray = False if in_channels == 3 else True
     train_dataset = config.init_obj('train_dataset', master_dataset,
-                                    transform=ResizeWeight((img_w, img_h), gray_format=convert_to_gray),
+                                    transform=master_dataset.CustomImagePreprocess(img_h, img_w, convert_to_gray),
                                     convert_to_gray=convert_to_gray)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) \
-        if config['distributed'] else None
+        if config['distributed'] else ImbalancedDatasetSampler(train_dataset)
 
-    is_shuffle = False if config['distributed'] else True
+    is_shuffle = False
     train_data_loader = config.init_obj('train_loader', torch.utils.data.dataloader,
                                         dataset=train_dataset,
                                         sampler=train_sampler,
@@ -46,9 +46,8 @@ def main(config: ConfigParser, local_master: bool, logger=None):
                                         collate_fn=DistCollateFn(training=True),
                                         num_workers=train_num_workers,
                                         shuffle=is_shuffle)
-
     val_dataset = config.init_obj('val_dataset', master_dataset,
-                                  transform=ResizeWeight((img_w, img_h), gray_format=convert_to_gray),
+                                  transform=master_dataset.CustomImagePreprocess(img_h, img_w, convert_to_gray),
                                   convert_to_gray=convert_to_gray)
     val_sampler = DistValSampler(list(range(len(val_dataset))), batch_size=val_batch_size,
                                  distributed=config['distributed'])
@@ -92,7 +91,6 @@ def main(config: ConfigParser, local_master: bool, logger=None):
                       valid_data_loader=val_data_loader,
                       lr_scheduler=lr_scheduler,
                       max_len_step=max_len_step)
-
     trainer.train()
 
     logger.info('Distributed training end...') if local_master else None
