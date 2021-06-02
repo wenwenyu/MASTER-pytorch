@@ -148,7 +148,7 @@ if __name__ == '__main__':
     device = args.target_device
     target_output_directory = args.target_directory
     os.makedirs(target_output_directory, exist_ok=True)
-    with open(config_file_path, mode='r') as to_read_config_file:
+    with open(config_file_path, mode='r',encoding = 'utf-8') as to_read_config_file:
         json_config = json.loads(to_read_config_file.read())
     config = ConfigParser(json_config)
     model = MASTER(**config['model_arch']['args'])
