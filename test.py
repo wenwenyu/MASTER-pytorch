@@ -39,7 +39,7 @@ def predict(args):
     in_channels = config['model_arch']['args']['backbone_kwargs']['in_channels']
     convert_to_gray = False if in_channels == 3 else True
     test_dataset = TextDataset(img_root=args.img_folder, txt_file=index_txt_file,
-                               transform=ResizeWeight((args.width, args.height), gray_format=convert_to_gray),
+                               transform=CustomImagePreprocess(args.height, args.width, convert_to_gray),
                                img_w=args.width,
                                img_h=args.height,
                                training=False,
