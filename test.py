@@ -72,8 +72,9 @@ def predict(args):
             # TODO replace with memory-cache based decode
             outputs, probs = decode_util.greedy_decode_with_probability(model, images, LabelTransformer.max_length,
                                                                         LabelTransformer.SOS,
-                                                                        padding_symbol=LabelTransformer.PAD,
-                                                                        device=images.device, padding=True)
+                                                                        _padding_symbol_index=LabelTransformer.PAD,
+                                                                        _result_device=images.device,
+                                                                        _is_padding=True)
 
         for index, (pred, prob, img_name) in enumerate(zip(outputs[:, 1:], probs, file_names)):
             predict_text = ""
