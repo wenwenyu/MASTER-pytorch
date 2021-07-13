@@ -12,7 +12,7 @@ import sys
 from torch.utils.data.dataloader import DataLoader
 
 import model.master as master_arch_module
-from data_utils.datasets import TextDataset, ResizeWeight, DistCollateFn, CustomImagePreprocess
+from data_utils.datasets import TextDataset, ResizeWeight, DistCollateFn
 from utils.label_util import LabelTransformer
 from utils import decode_util
 
@@ -39,7 +39,7 @@ def predict(args):
     in_channels = config['model_arch']['args']['backbone_kwargs']['in_channels']
     convert_to_gray = False if in_channels == 3 else True
     test_dataset = TextDataset(img_root=args.img_folder, txt_file=index_txt_file,
-                               transform=CustomImagePreprocess(args.height, args.width, convert_to_gray),
+                               transform=ResizeWeight((args.width, args.height), gray_format=convert_to_gray),
                                img_w=args.width,
                                img_h=args.height,
                                training=False,
@@ -58,10 +58,9 @@ def predict(args):
     result_output_file = output_path.joinpath(args.output_file_name)
     pred_results = []
     # predict and save to file
-    for step_idx, input_data_item in tqdm(enumerate(test_data_loader),total=len(test_data_loader)):
+    for step_idx, input_data_item in tqdm(enumerate(test_data_loader)):
         batch_size = input_data_item['batch_size']
-        if batch_size == 0:
-            continue
+        if batch_size == 0: continue
 
         images = input_data_item['images']
         file_names = input_data_item['file_names']
@@ -73,9 +72,10 @@ def predict(args):
             # TODO replace with memory-cache based decode
             outputs, probs = decode_util.greedy_decode_with_probability(model, images, LabelTransformer.max_length,
                                                                         LabelTransformer.SOS,
-                                                                        LabelTransformer.EOS,
                                                                         _padding_symbol_index=LabelTransformer.PAD,
-                                                                        _result_device=images.device, _is_padding=True)
+                                                                        _result_device=images.device,
+                                                                        _is_padding=True)
+
         for index, (pred, prob, img_name) in enumerate(zip(outputs[:, 1:], probs, file_names)):
             predict_text = ""
             # pred_list = []
