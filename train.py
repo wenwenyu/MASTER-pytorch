@@ -20,7 +20,7 @@ from parse_config import ConfigParser
 from trainer import Trainer
 
 
-def main(config: ConfigParser, local_master: bool, logger=None):
+def main(config: ConfigParser, local_master: bool, logger = None):
     train_batch_size = config['trainer']['train_batch_size']
     val_batch_size = config['trainer']['val_batch_size']
 
@@ -33,30 +33,30 @@ def main(config: ConfigParser, local_master: bool, logger=None):
     in_channels = config['model_arch']['args']['backbone_kwargs']['in_channels']
     convert_to_gray = False if in_channels == 3 else True
     train_dataset = config.init_obj('train_dataset', master_dataset,
-                                    transform=master_dataset.CustomImagePreprocess(img_h, img_w, convert_to_gray),
-                                    convert_to_gray=convert_to_gray)
+                                    transform = master_dataset.CustomImagePreprocess(img_h, img_w, convert_to_gray),
+                                    convert_to_gray = convert_to_gray)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) \
         if config['distributed'] else ImbalancedDatasetSampler(train_dataset)
 
     is_shuffle = False
     train_data_loader = config.init_obj('train_loader', torch.utils.data.dataloader,
-                                        dataset=train_dataset,
-                                        sampler=train_sampler,
-                                        batch_size=train_batch_size,
-                                        collate_fn=DistCollateFn(training=True),
-                                        num_workers=train_num_workers,
-                                        shuffle=is_shuffle)
+                                        dataset = train_dataset,
+                                        sampler = train_sampler,
+                                        batch_size = train_batch_size,
+                                        collate_fn = DistCollateFn(training = True),
+                                        num_workers = train_num_workers,
+                                        shuffle = is_shuffle)
     val_dataset = config.init_obj('val_dataset', master_dataset,
-                                  transform=master_dataset.CustomImagePreprocess(img_h, img_w, convert_to_gray),
-                                  convert_to_gray=convert_to_gray)
-    val_sampler = DistValSampler(list(range(len(val_dataset))), batch_size=val_batch_size,
-                                 distributed=config['distributed'])
+                                  transform = master_dataset.CustomImagePreprocess(img_h, img_w, convert_to_gray),
+                                  convert_to_gray = convert_to_gray)
+    val_sampler = DistValSampler(list(range(len(val_dataset))), batch_size = val_batch_size,
+                                 distributed = config['distributed'])
     val_data_loader = config.init_obj('val_loader', torch.utils.data.dataloader,
-                                      dataset=val_dataset,
-                                      batch_sampler=val_sampler,
-                                      batch_size=1,
-                                      collate_fn=DistCollateFn(training=True),
-                                      num_workers=val_num_workers)
+                                      dataset = val_dataset,
+                                      batch_sampler = val_sampler,
+                                      batch_size = 1,
+                                      collate_fn = DistCollateFn(training = True),
+                                      num_workers = val_num_workers)
 
     logger.info(f'Dataloader instances have finished. Train datasets: {len(train_dataset)} '
                 f'Val datasets: {len(val_dataset)} Train_batch_size/gpu: {train_batch_size} '
@@ -87,10 +87,10 @@ def main(config: ConfigParser, local_master: bool, logger=None):
     logger.info('Training start...') if local_master else None
 
     trainer = Trainer(model, optimizer, config,
-                      data_loader=train_data_loader,
-                      valid_data_loader=val_data_loader,
-                      lr_scheduler=lr_scheduler,
-                      max_len_step=max_len_step)
+                      data_loader = train_data_loader,
+                      valid_data_loader = val_data_loader,
+                      lr_scheduler = lr_scheduler,
+                      max_len_step = max_len_step)
     trainer.train()
 
     logger.info('Distributed training end...') if local_master else None
@@ -138,16 +138,16 @@ def entry_point(config: ConfigParser):
                     ) if local_master else None
     else:
         torch.backends.cudnn.benchmark = True
-        logger.warn('You have chosen to benchmark training. '
-                    'This will turn on the CUDNN benchmark setting'
-                    'which can speed up your training considerably! '
-                    'You may see unexpected behavior when restarting '
-                    'from checkpoints due to RandomizedMultiLinearMap need deterministic turn on.'
-                    ) if local_master else None
+        logger.warning('You have chosen to benchmark training. '
+                       'This will turn on the CUDNN benchmark setting'
+                       'which can speed up your training considerably! '
+                       'You may see unexpected behavior when restarting '
+                       'from checkpoints due to RandomizedMultiLinearMap need deterministic turn on.'
+                       ) if local_master else None
 
     if config['distributed']:
         # init process group
-        dist.init_process_group(backend='nccl', init_method='env://')
+        dist.init_process_group(backend = 'nccl', init_method = 'env://')
         config.update_config('global_rank', dist.get_rank())
         # log distributed training cfg
         logger.info(
@@ -175,13 +175,13 @@ def fix_random_seed_for_reproduce(seed):
 
 def parse_args():
     global config
-    args = argparse.ArgumentParser(description='MASTER PyTorch Distributed Training')
-    args.add_argument('-c', '--config', default=None, type=str,
-                      help='config file path (default: None)')
-    args.add_argument('-r', '--resume', default=None, type=str,
-                      help='path to latest checkpoint (default: None)')
-    args.add_argument('-d', '--device', default=None, type=str,
-                      help='indices of GPUs to be available (default: all)')
+    args = argparse.ArgumentParser(description = 'MASTER PyTorch Distributed Training')
+    args.add_argument('-c', '--config', default = None, type = str,
+                      help = 'config file path (default: None)')
+    args.add_argument('-r', '--resume', default = None, type = str,
+                      help = 'path to latest checkpoint (default: None)')
+    args.add_argument('-d', '--device', default = None, type = str,
+                      help = 'indices of GPUs to be available (default: all)')
     # custom cli options to modify configuration from default values given in json file.
     CustomArgs = collections.namedtuple('CustomArgs', 'flags default type target help')
     options = [
@@ -196,9 +196,9 @@ def parse_args():
         # CustomArgs(['--local_rank'], default=0, type=int, target='local_rank',
         #            help='this is automatically passed in via torch.distributed.launch.py, '
         #                 'process will be assigned a local rank ID in [0,local_world_size-1]. (default: 0)'),
-        CustomArgs(['--finetune'], default='false', type=str, target='finetune',
-                   help='finetune mode will load resume checkpoint, but do not use previous config and optimizer '
-                        '(default: false), so there has three running mode: normal, resume, finetune')
+        CustomArgs(['--finetune'], default = 'false', type = str, target = 'finetune',
+                   help = 'finetune mode will load resume checkpoint, but do not use previous config and optimizer '
+                          '(default: false), so there has three running mode: normal, resume, finetune')
     ]
     config = ConfigParser.from_args(args, options)
     return config
