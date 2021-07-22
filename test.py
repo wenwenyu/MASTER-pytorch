@@ -12,7 +12,7 @@ import sys
 from torch.utils.data.dataloader import DataLoader
 
 import model.master as master_arch_module
-from data_utils.datasets import TextDataset, ResizeWeight, DistCollateFn
+from data_utils.datasets import TextDataset, ResizeWeight, DistCollateFn, CustomImagePreprocess
 from utils.label_util import LabelTransformer
 from utils import decode_util
 
@@ -58,9 +58,10 @@ def predict(args):
     result_output_file = output_path.joinpath(args.output_file_name)
     pred_results = []
     # predict and save to file
-    for step_idx, input_data_item in tqdm(enumerate(test_data_loader)):
+    for step_idx, input_data_item in tqdm(enumerate(test_data_loader),total=len(test_data_loader)):
         batch_size = input_data_item['batch_size']
-        if batch_size == 0: continue
+        if batch_size == 0:
+            continue
 
         images = input_data_item['images']
         file_names = input_data_item['file_names']
@@ -72,9 +73,10 @@ def predict(args):
             # TODO replace with memory-cache based decode
             outputs, probs = decode_util.greedy_decode_with_probability(model, images, LabelTransformer.max_length,
                                                                         LabelTransformer.SOS,
+                                                                        LabelTransformer.EOS,
                                                                         _padding_symbol_index=LabelTransformer.PAD,
-                                                                        _result_device=images.device,
-                                                                        _is_padding=True)
+                                                                        _result_device=images.device, _is_padding=True)
+
 
         for index, (pred, prob, img_name) in enumerate(zip(outputs[:, 1:], probs, file_names)):
             predict_text = ""

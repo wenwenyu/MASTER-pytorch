@@ -18,7 +18,7 @@ def ensure_dir(dirname):
 
 def read_json(fname):
     fname = Path(fname)
-    with fname.open('rt') as handle:
+    with fname.open('rt', encoding='utf-8') as handle:
         return json.load(handle, object_hook=OrderedDict)
 
 

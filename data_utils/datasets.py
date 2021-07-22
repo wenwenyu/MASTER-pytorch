@@ -8,6 +8,7 @@ import io
 import math
 import json
 
+import cv2
 from PIL import Image
 import numpy as np
 import lmdb
@@ -19,13 +20,15 @@ from torch.utils.data import sampler
 from torch.utils.data.sampler import Sampler
 import torchvision.transforms as transforms
 
+from utils.GeometryUtils import resize_with_height, pad_image_with_specific_base
 from utils.label_util import LabelTransformer
 
 
 class TextDataset(Dataset):
 
-    def __init__(self, txt_file=None, img_root=None, transform=None, target_transform=None, training=True, img_w=256,
-                 img_h=32, case_sensitive=True, testing_with_label_file=False, convert_to_gray=True, split=','):
+    def __init__(self, txt_file = None, img_root = None, transform = None, target_transform = None, training = True,
+                 img_w = 256,img_h = 32, case_sensitive = True,
+                 testing_with_label_file = False, convert_to_gray = True,split = ','):
         '''
 
         :param txt_file: txt file, every line containing <ImageFile>,<Text Label>
@@ -69,11 +72,12 @@ class TextDataset(Dataset):
     def __len__(self):
         return self.nSamples
 
-    def __getitem__(self, index):
+    def __getitem__(self, _index):
         try:
-            file_name = self.all_images[index]
+            file_name = self.all_images[_index]
+            label = ''
             if self.training:
-                label = self.all_labels[index]
+                label = self.all_labels[_index]
 
             img = Image.open(file_name)
 
@@ -84,7 +88,6 @@ class TextDataset(Dataset):
                     img = img.convert('RGB')
             except Exception as e:
                 print('Error Image for {}'.format(file_name))
-            # exit()
 
             if self.transform is not None:
                 img, width_ratio = self.transform(img)
@@ -94,16 +97,20 @@ class TextDataset(Dataset):
             if self.training:
                 if not self.case_sensitive:
                     label = label.lower()
-                return (img, label)
+                return img, label
             else:
-                return (img, file_name)
+                return img, file_name
         except Exception as read_e:
             return self.__getitem__(np.random.randint(self.__len__()))
 
+    def get_all_labels(self):
+        return self.all_labels
+
 
 class JSONDataset(Dataset):
-    def __init__(self, txt_file=None, img_root=None, transform=None, target_transform=None, training=True, img_w=256,
-                 img_h=32, case_sensitive=True, testing_with_label_file=False, convert_to_gray=True):
+    def __init__(self, txt_file = None, img_root = None, transform = None, target_transform = None, training = True,
+                 img_w = 256,
+                 img_h = 32, case_sensitive = True, testing_with_label_file = False, convert_to_gray = True):
         '''
         :param txt_file: txt file, every line containing {ImageFile:<ImageFile>, Label:<Label>}
         :param img_root:
@@ -177,16 +184,17 @@ class JSONDataset(Dataset):
         except Exception as read_e:
             return self.__getitem__(np.random.randint(self.__len__()))
 
+
 class LmdbDataset(Dataset):
-    def __init__(self, lmdb_dir_root=None, transform=None, target_transform=None, training=True, img_w=256,
-                 img_h=32, case_sensitive=True,
-                 convert_to_gray=True):
+    def __init__(self, lmdb_dir_root = None, transform = None, target_transform = None, training = True, img_w = 256,
+                 img_h = 32, case_sensitive = True,
+                 convert_to_gray = True):
         self.env = lmdb.open(lmdb_dir_root,
-                             max_readers=32,
-                             readonly=True,
-                             lock=False,
-                             readahead=False,
-                             meminit=False)
+                             max_readers = 32,
+                             readonly = True,
+                             lock = False,
+                             readahead = False,
+                             meminit = False)
         if not self.env:
             raise RuntimeError('Lmdb file cannot be open')
 
@@ -208,7 +216,7 @@ class LmdbDataset(Dataset):
     def __get_images_and_labels(self):
         image_keys = []
         labels = []
-        with self.env.begin(write=False) as txn:
+        with self.env.begin(write = False) as txn:
             nSamples = int(txn.get(b"nSamples").decode())
             for i in range(nSamples):
                 index = i + 1
@@ -228,7 +236,7 @@ class LmdbDataset(Dataset):
         try:
             image_key = self.image_keys[index]
 
-            with self.env.begin(write=False) as txn:
+            with self.env.begin(write = False) as txn:
                 imgbuf = txn.get(image_key)
                 buf = io.BytesIO()
                 buf.write(imgbuf)
@@ -261,8 +269,9 @@ class LmdbDataset(Dataset):
             return self.__getitem__(np.random.randint(self.__len__()))
 
 
-def hierarchy_dataset(root, select_data=None, training=True, img_w=256, img_h=32, transform=None, target_transform=None,
-                      case_sensitive=True, convert_to_gray=True):
+def hierarchy_dataset(root, select_data = None, training = True, img_w = 256, img_h = 32, transform = None,
+                      target_transform = None,
+                      case_sensitive = True, convert_to_gray = True):
     """
     combine lmdb data in sub directory (MJ_train vs Synthtext)
     change sub directory if you want in config file by format "sub_dir-sub_dir-..."
@@ -271,9 +280,9 @@ def hierarchy_dataset(root, select_data=None, training=True, img_w=256, img_h=32
     if select_data is not None:
         select_data = select_data.split('-')
         for select_d in select_data:
-            dataset = LmdbVer2Dataset(lmdb_dir_root=os.path.join(root, select_d), training=training, img_w=img_w,
-                                      img_h=img_h, transform=transform, target_transform=target_transform,
-                                      case_sensitive=case_sensitive, convert_to_gray=convert_to_gray)
+            dataset = LmdbVer2Dataset(lmdb_dir_root = os.path.join(root, select_d), training = training, img_w = img_w,
+                                      img_h = img_h, transform = transform, target_transform = target_transform,
+                                      case_sensitive = case_sensitive, convert_to_gray = convert_to_gray)
             dataset_list.append(dataset)
     concatenated_dataset = ConcatDataset(dataset_list)
     return concatenated_dataset
@@ -292,15 +301,16 @@ class LmdbVer2Dataset(Dataset):
             MJ_test
             MJ_valid
     """
-    def __init__(self, lmdb_dir_root=None, transform=None, target_transform=None, training=True, img_w=256,
-                 img_h=32, case_sensitive=True,
-                 convert_to_gray=True):
+
+    def __init__(self, lmdb_dir_root = None, transform = None, target_transform = None, training = True, img_w = 256,
+                 img_h = 32, case_sensitive = True,
+                 convert_to_gray = True):
         self.env = lmdb.open(lmdb_dir_root,
-                             max_readers=32,
-                             readonly=True,
-                             lock=False,
-                             readahead=False,
-                             meminit=False)
+                             max_readers = 32,
+                             readonly = True,
+                             lock = False,
+                             readahead = False,
+                             meminit = False)
         if not self.env:
             raise RuntimeError('Lmdb file cannot be open')
 
@@ -322,7 +332,7 @@ class LmdbVer2Dataset(Dataset):
     def __get_images_and_labels(self):
         image_keys = []
         labels = []
-        with self.env.begin(write=False) as txn:
+        with self.env.begin(write = False) as txn:
             nSamples = int(txn.get(b"num-samples").decode())
             for i in range(nSamples):
                 index = i + 1
@@ -342,7 +352,7 @@ class LmdbVer2Dataset(Dataset):
         try:
             image_key = self.image_keys[index]
 
-            with self.env.begin(write=False) as txn:
+            with self.env.begin(write = False) as txn:
                 imgbuf = txn.get(image_key)
                 buf = io.BytesIO()
                 buf.write(imgbuf)
@@ -374,12 +384,13 @@ class LmdbVer2Dataset(Dataset):
         except Exception as read_e:
             return self.__getitem__(np.random.randint(self.__len__()))
 
-def get_datasets_image_label_with_txt_file(txt_file, img_root, split=','):
+
+def get_datasets_image_label_with_txt_file(txt_file, img_root, split = ','):
     image_names = []
     labels = []
 
     # every line containing <ImageFile,Label> text
-    with open(txt_file, encoding='utf-8') as f:
+    with open(txt_file, encoding = 'utf-8') as f:
         lines = f.readlines()
         for line in lines:
             splited = line.strip().rstrip('\n').split(split)
@@ -398,7 +409,7 @@ def get_dataset_image_and_label_with_json_file(txt_file, img_root):
     labels = []
 
     # every line containing {ImageFile:<ImageFile>, Label:<Label>} json object
-    with open(txt_file, encoding='utf-8') as f:
+    with open(txt_file, encoding = 'utf-8') as f:
         lines = f.readlines()
         for line in lines:
             line = line.strip().rstrip("\n")
@@ -415,7 +426,7 @@ def get_dataset_image_and_label_with_json_file(txt_file, img_root):
 
 class ResizeWeight(object):
 
-    def __init__(self, size, interpolation=Image.BILINEAR, gray_format=True):
+    def __init__(self, size, interpolation = Image.BILINEAR, gray_format = True):
         self.w, self.h = size
         self.interpolation = interpolation
         self.toTensor = transforms.ToTensor()
@@ -427,7 +438,7 @@ class ResizeWeight(object):
         if self.gray_format:
             if img_w / img_h < 1.:
                 img = img.resize((self.h, self.h), self.interpolation)
-                resize_img = np.zeros((self.h, self.w, 1), dtype=np.uint8)
+                resize_img = np.zeros((self.h, self.w, 1), dtype = np.uint8)
                 resize_img[0:self.h, 0:self.h, 0] = img
                 img = resize_img
                 width = self.h
@@ -435,13 +446,13 @@ class ResizeWeight(object):
                 ratio = img_h / self.h
                 new_w = int(img_w / ratio)
                 img = img.resize((new_w, self.h), self.interpolation)
-                resize_img = np.zeros((self.h, self.w, 1), dtype=np.uint8)
+                resize_img = np.zeros((self.h, self.w, 1), dtype = np.uint8)
                 resize_img[0:self.h, 0:new_w, 0] = img
                 img = resize_img
                 width = new_w
             else:
                 img = img.resize((self.w, self.h), self.interpolation)
-                resize_img = np.zeros((self.h, self.w, 1), dtype=np.uint8)
+                resize_img = np.zeros((self.h, self.w, 1), dtype = np.uint8)
                 resize_img[:, :, 0] = img
                 img = resize_img
                 width = self.w
@@ -452,8 +463,8 @@ class ResizeWeight(object):
         else:  # RGB format
             if img_w / img_h < 1.:
                 img = img.resize((self.h, self.h), self.interpolation)
-                resize_img = np.zeros((self.h, self.w, 3), dtype=np.uint8)
-                img = np.array(img, dtype=np.uint8)  # (w,h) -> (h,w,c)
+                resize_img = np.zeros((self.h, self.w, 3), dtype = np.uint8)
+                img = np.array(img, dtype = np.uint8)  # (w,h) -> (h,w,c)
                 resize_img[0:self.h, 0:self.h, :] = img
                 img = resize_img
                 width = self.h
@@ -461,15 +472,15 @@ class ResizeWeight(object):
                 ratio = img_h / self.h
                 new_w = int(img_w / ratio)
                 img = img.resize((new_w, self.h), self.interpolation)
-                resize_img = np.zeros((self.h, self.w, 3), dtype=np.uint8)
-                img = np.array(img, dtype=np.uint8)  # (w,h) -> (h,w,c)
+                resize_img = np.zeros((self.h, self.w, 3), dtype = np.uint8)
+                img = np.array(img, dtype = np.uint8)  # (w,h) -> (h,w,c)
                 resize_img[0:self.h, 0:new_w, :] = img
                 img = resize_img
                 width = new_w
             else:
                 img = img.resize((self.w, self.h), self.interpolation)
-                resize_img = np.zeros((self.h, self.w, 3), dtype=np.uint8)
-                img = np.array(img, dtype=np.uint8)  # (w,h) -> (h,w,c)
+                resize_img = np.zeros((self.h, self.w, 3), dtype = np.uint8)
+                img = np.array(img, dtype = np.uint8)  # (w,h) -> (h,w,c)
                 resize_img[:, :, :] = img
                 img = resize_img
                 width = self.w
@@ -479,35 +490,54 @@ class ResizeWeight(object):
             return img, width / self.w
 
 
+class CustomImagePreprocess:
+    def __init__(self, _target_height, _target_width, _is_gray):
+        self.target_height, self.target_width = _target_height, _target_width
+        self.is_gray = _is_gray
+
+    def __call__(self, _img: Image.Image):
+        if self.is_gray:
+            img = _img.convert('L')
+        else:
+            img = _img
+        img_np = np.asarray(img)
+        h, w = img_np.shape[:2]
+        resized_img = cv2.resize(img_np, (self.target_width, self.target_height))
+        full_channel_img = resized_img[..., None] if len(resized_img.shape) == 2 else resized_img
+        resized_img_tensor = torch.from_numpy(np.transpose(full_channel_img, (2, 0, 1))).to(torch.float32)
+        resized_img_tensor.sub_(127.5).div_(127.5)
+        return resized_img_tensor, w / self.target_width
+
+
 class DistCollateFn(object):
     '''
     fix bug when len(data) do not be divided by batch_size, on condition of distributed validation
     avoid error when some gpu assigned zero samples
     '''
 
-    def __init__(self, training=True):
+    def __init__(self, training = True):
         self.training = training
 
     def __call__(self, batch):
 
         batch_size = len(batch)
         if batch_size == 0:
-            return dict(batch_size=batch_size, images=None, labels=None)
+            return dict(batch_size = batch_size, images = None, labels = None)
 
         if self.training:
             images, labels = zip(*batch)
-            image_batch_tensor = torch.stack(images, dim=0).float()
+            image_batch_tensor = torch.stack(images, dim = 0).float()
             # images Tensor: (bs, c, h, w), file_names tuple: (bs,)
-            return dict(batch_size=batch_size,
-                        images=image_batch_tensor,
-                        labels=labels)
+            return dict(batch_size = batch_size,
+                        images = image_batch_tensor,
+                        labels = labels)
         else:
             images, file_names = zip(*batch)
-            image_batch_tensor = torch.stack(images, dim=0).float()
+            image_batch_tensor = torch.stack(images, dim = 0).float()
             # images Tensor: (bs, c, h, w), file_names tuple: (bs,)
-            return dict(batch_size=batch_size,
-                        images=image_batch_tensor,
-                        file_names=file_names)
+            return dict(batch_size = batch_size,
+                        images = image_batch_tensor,
+                        file_names = file_names)
 
 
 class DistValSampler(Sampler):
@@ -516,7 +546,7 @@ class DistValSampler(Sampler):
     # to guarantee every gpu validate different samples simultaneously
     # WARNING: Some baches will contain an empty array to signify there aren't enough samples
     # distributed=False - same validation happens on every single gpu
-    def __init__(self, indices, batch_size, distributed=True):
+    def __init__(self, indices, batch_size, distributed = True):
         self.indices = indices
         self.batch_size = batch_size
         if distributed:

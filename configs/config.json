@@ -34,12 +34,14 @@
             "encoder_kwargs":{
                 "stacks": 3,
                 "dropout": 0.2,
-                "feed_forward_size": 2048
+                "feed_forward_size": 2048,
+                "share_parameter": false
             },
             "decoder_kwargs":{
                 "stacks": 3,
                 "dropout": 0.2,
-                "feed_forward_size": 2048
+                "feed_forward_size": 2048,
+                "share_parameter": false
             }
         }
     },

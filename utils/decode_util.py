@@ -23,29 +23,32 @@ def greedy_decode_with_probability(_model,
                                    _input_tensor,
                                    _max_sequence_length,
                                    _start_symbol_index,
+                                   _end_symbol_index,
                                    _padding_symbol_index=None,
                                    _result_device='cpu',
                                    _is_padding=False):
     """
         output predicted transcript and corresponding probability
-       :param _model:
-       :param _input_tensor:
-       :param _max_sequence_length:
-       :param _start_symbol_index:
-       :param _padding_symbol_index:
-       :param _result_device:
+       :param _model:   master model
+       :param _input_tensor:    to predict tensor
+       :param _max_sequence_length: max sequence length to predict
+       :param _start_symbol_index:  sos label index
+       :param _end_symbol_index:    eos label index
+       :param _padding_symbol_index:    padding label index
+       :param _result_device:   target device(not used)
        :param _is_padding: if padding is True, max_len will be used. if paddding is False and max_len == -1, max_len will
        be set to 100, otherwise max_len will be used.
-       :return:
+       :return: label,label probability
        """
     memory = _model.encode_stage(_input_tensor)
-    ys, probs = predict(
+    predicted_label, predicted_label_probability = predict(
         memory,
         _input_tensor,
         _model.decode_stage,
         _max_sequence_length,
         _start_symbol_index,
+        _end_symbol_index,
         _padding_symbol_index
     )
 
-    return ys, probs
+    return predicted_label, predicted_label_probability
