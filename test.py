@@ -76,6 +76,8 @@ def predict(args):
                                                                         LabelTransformer.EOS,
                                                                         _padding_symbol_index=LabelTransformer.PAD,
                                                                         _result_device=images.device, _is_padding=True)
+
+
         for index, (pred, prob, img_name) in enumerate(zip(outputs[:, 1:], probs, file_names)):
             predict_text = ""
             # pred_list = []
