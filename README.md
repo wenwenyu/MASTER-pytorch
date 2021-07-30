@@ -18,6 +18,7 @@ and the performance is almost identical. (PS. Logo inspired by the Master Oogway
 ## News
 * 2021/07: [MASTER-mmocr](https://github.com/JiaquanYe/MASTER-mmocr), reimplementation of MASTER by mmocr. [@Jiaquan Ye](https://github.com/JiaquanYe)
 * 2021/07: [TableMASTER-mmocr](https://github.com/JiaquanYe/TableMASTER-mmocr), 2nd solution of ICDAR 2021 Competition on Scientific Literature Parsing Task B based on MASTER. [@Jiaquan Ye](https://github.com/JiaquanYe)
+* 2021/07: Talk can be found at [here](https://www.bilibili.com/video/BV1T44y1m7vc) (Chinese).
 * 2021/05: [Savior](https://github.com/novioleo/Savior), which aims to provide a simple, lightweight, fast integrated, pipelined deployment framework for RPA,
 is now integrated MASTER for captcha recognition. [@Tao Luo](https://github.com/novioleo)
 * 2021/04: Slides can be found at [here](https://github.com/wenwenyu/MASTER-pytorch/blob/main/assets/MASTER.pdf).
