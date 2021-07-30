@@ -14,11 +14,13 @@ PyTorch reimplementation of ["MASTER: Multi-Aspect Non-local Network for Scene T
 You can also find Tensorflow reimplementation at [MASTER-TF](https://github.com/jiangxiluning/MASTER-TF) repository,
 and the performance is almost identical. (PS. Logo inspired by the Master Oogway in Kung Fu Panda)
 
-Slides can be found at [here](https://github.com/wenwenyu/MASTER-pytorch/blob/main/assets/MASTER.pdf).
 
-**\*\*\*\*\* Updated on May 23th, 2021: [Savior](https://github.com/novioleo/Savior), which aims to provide a simple, lightweight, fast integrated, pipelined deployment framework for RPA,
-is now integrated MASTER for captcha recognition. Thanks [Tao Luo](https://github.com/novioleo) for this awesome
-application.\*\*\*\*\***
+## News
+* 2021/07: [MASTER-mmocr](https://github.com/JiaquanYe/MASTER-mmocr), reimplementation of MASTER by mmocr. [@Jianquan Ye](https://github.com/JiaquanYe)
+* 2021/07: [TableMASTER-mmocr](https://github.com/JiaquanYe/TableMASTER-mmocr), 2nd solution of ICDAR 2021 Competition on Scientific Literature Parsing Task B based on MASTER. [@Jianquan Ye](https://github.com/JiaquanYe)
+* 2021/05: [Savior](https://github.com/novioleo/Savior), which aims to provide a simple, lightweight, fast integrated, pipelined deployment framework for RPA,
+is now integrated MASTER for captcha recognition. [@Tao Luo](https://github.com/novioleo)
+* 2021/04: Slides can be found at [here](https://github.com/wenwenyu/MASTER-pytorch/blob/main/assets/MASTER.pdf).
 
 ## Honors based on MASTER
 * 1st place (2021/05) solution to [ICDAR 2021 Competition on Scientific Table Image Recognition to LaTeX (Subtask I: Table structure reconstruction)](https://competitions.codalab.org/competitions/26979)
