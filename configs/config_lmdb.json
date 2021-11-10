@@ -47,7 +47,7 @@
     "train_dataset": {
         "type": "hierarchy_dataset",
         "args": {
-            "lmdb_dir_root":"/home/wwyu/dataset/data_lmdb_release/training",
+            "root":"/home/wwyu/dataset/data_lmdb_release/training",
             "select_data": "MJ_train-ST",
             "img_w":160,
             "img_h":48,
@@ -68,7 +68,7 @@
     "val_dataset": {
         "type": "hierarchy_dataset",
         "args": {
-            "lmdb_dir_root":"/home/wwyu/dataset/data_lmdb_release/val",
+            "root":"/home/wwyu/dataset/data_lmdb_release/val",
             "select_data": "MJ_test-MJ_valid",
             "img_w":160,
             "img_h":48,
