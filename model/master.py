@@ -11,6 +11,8 @@ from torch.nn import Sequential
 from model.backbone import ConvEmbeddingGC
 from model.transformer import Encoder, Decoder
 
+from utils.label_util import LabelTransformer
+
 
 class Generator(nn.Module):
     """
@@ -58,7 +60,7 @@ class MASTER(nn.Module):
                 nn.init.xavier_uniform_(m_parameter)
 
     def build_model(self, common_kwargs, backbone_kwargs, encoder_kwargs, decoder_kwargs):
-        target_vocabulary = common_kwargs['n_class'] + 4
+        target_vocabulary = LabelTransformer.nclass # common_kwargs['n_class'] + 4
         heads = common_kwargs['multiheads']
         dimensions = common_kwargs['model_size']
         self.conv_embedding_gc = ConvEmbeddingGC(
