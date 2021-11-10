@@ -36,7 +36,7 @@ def main(config: ConfigParser, local_master: bool, logger = None):
                                     transform = master_dataset.CustomImagePreprocess(img_h, img_w, convert_to_gray),
                                     convert_to_gray = convert_to_gray)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) \
-        if config['distributed'] else ImbalancedDatasetSampler(train_dataset)
+        if config['distributed'] else None # ImbalancedDatasetSampler(train_dataset)
 
     is_shuffle = False
     train_data_loader = config.init_obj('train_loader', torch.utils.data.dataloader,
@@ -187,15 +187,15 @@ def parse_args():
     options = [
         # CustomArgs(['--lr', '--learning_rate'], default=0.0001, type=float, target='optimizer;args;lr',
         #            help='learning rate (default: 0.0001)'),
-        # CustomArgs(['-dist', '--distributed'], default='true', type=str, target='distributed',
-        #            help='run distributed training, true or false, (default: true).'
-        #                 ' turn off distributed mode can debug code on one gpu/cpu'),
-        # CustomArgs(['--local_world_size'], default=1, type=int, target='local_world_size',
-        #            help='the number of processes running on each node, this is passed in explicitly '
-        #                 'and is typically either $1$ or the number of GPUs per node. (default: 1)'),
-        # CustomArgs(['--local_rank'], default=0, type=int, target='local_rank',
-        #            help='this is automatically passed in via torch.distributed.launch.py, '
-        #                 'process will be assigned a local rank ID in [0,local_world_size-1]. (default: 0)'),
+        CustomArgs(['-dist', '--distributed'], default='true', type=str, target='distributed',
+                   help='run distributed training, true or false, (default: true).'
+                        ' turn off distributed mode can debug code on one gpu/cpu'),
+        CustomArgs(['--local_world_size'], default=1, type=int, target='local_world_size',
+                   help='the number of processes running on each node, this is passed in explicitly '
+                        'and is typically either $1$ or the number of GPUs per node. (default: 1)'),
+        CustomArgs(['--local_rank'], default=0, type=int, target='local_rank',
+                   help='this is automatically passed in via torch.distributed.launch.py, '
+                        'process will be assigned a local rank ID in [0,local_world_size-1]. (default: 0)'),
         CustomArgs(['--finetune'], default = 'false', type = str, target = 'finetune',
                    help = 'finetune mode will load resume checkpoint, but do not use previous config and optimizer '
                           '(default: false), so there has three running mode: normal, resume, finetune')
