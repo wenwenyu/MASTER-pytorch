@@ -39,7 +39,7 @@ def predict(args):
     in_channels = config['model_arch']['args']['backbone_kwargs']['in_channels']
     convert_to_gray = False if in_channels == 3 else True
     test_dataset = TextDataset(img_root=args.img_folder, txt_file=index_txt_file,
-                               transform=ResizeWeight((args.width, args.height), gray_format=convert_to_gray),
+                               transform=CustomImagePreprocess(args.height, args.width, convert_to_gray),
                                img_w=args.width,
                                img_h=args.height,
                                training=False,
@@ -112,10 +112,10 @@ if __name__ == '__main__':
     args.add_argument('-index_txt_file', '--index_txt_file', default=None, type=str, required=False,
                       help='path to index txt and corresponding filename, '
                            'if None, read img from img_folder, otherwise, index_txt_file must be set (default: None)')
-    args.add_argument('-width', '--width', default=256, type=int, required=False,
-                      help='resized image width (default: 256)')
-    args.add_argument('-height', '--height', default=32, type=int, required=False,
-                      help='resized image height (default: 32)')
+    args.add_argument('-width', '--width', default=160, type=int, required=False,
+                      help='resized image width (default: 160)')
+    args.add_argument('-height', '--height', default=48, type=int, required=False,
+                      help='resized image height (default: 48)')
     args.add_argument('-output', '--output_folder', default='predict_results', type=str, required=False,
                       help='output folder (default: predict_results)')
     args.add_argument('-output_file_name', '--output_file_name', default='predict_result.json', type=str,

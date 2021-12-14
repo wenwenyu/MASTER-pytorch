@@ -104,18 +104,18 @@ This is equivalent to
 ```bash
 python -m torch.distributed.launch --nnodes=1 --node_rank=0 --nproc_per_node=4 \
 --master_addr=127.0.0.1 --master_port=5555 \
-train.py -c configs/config.json -d 1,2,3,4 --local_world_size 4
+train.py -c configs/config.json -d 0,1,2,3 --local_world_size 4
 ```
 and is equivalent to specify indices of available GPUs by `CUDA_VISIBLE_DEVICES` instead of `-d` args
 ```bash
-CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnodes=1 --node_rank=0 --nproc_per_node=4 \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.launch --nnodes=1 --node_rank=0 --nproc_per_node=4 \
 --master_addr=127.0.0.1 --master_port=5555 \
 train.py -c configs/config.json --local_world_size 4
 ```
 Similarly, it can be launched with a single process that spans all 4 GPUs (if node has 4 available GPUs) 
 using (don't recommend):
 ```bash
-CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnodes=1 --node_rank=0 --nproc_per_node=1 \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.launch --nnodes=1 --node_rank=0 --nproc_per_node=1 \
 --master_addr=127.0.0.1 --master_port=5555 \
 train.py -c configs/config.json --local_world_size 1
 ```
@@ -125,7 +125,7 @@ e.g., 2 nodes 4 gpus run as follows
   
   Node 1, ip: 192.168.0.10, then run on node 1 as follows
   ```
-CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnodes=2 --node_rank=0 --nproc_per_node=4 \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.launch --nnodes=2 --node_rank=0 --nproc_per_node=4 \
 --master_addr=192.168.0.10 --master_port=5555 \
 train.py -c configs/config.json --local_world_size 4  
 ```
@@ -149,7 +149,7 @@ You can resume from a previously saved checkpoint by:
   ```
   python -m torch.distributed.launch --nnodes=1 --node_rank=0 --nproc_per_node=4 \
 --master_addr=127.0.0.1 --master_port=5555 \
-train.py -d 1,2,3,4 --local_world_size 4 --resume path/to/checkpoint
+train.py -d 0,1,2,3 --local_world_size 4 --resume path/to/checkpoint
   ```
 
 ### Finetune from checkpoints
@@ -158,7 +158,7 @@ You can finetune from a previously saved checkpoint by:
   ```
   python -m torch.distributed.launch --nnodes=1 --node_rank=0 --nproc_per_node=4 \
 --master_addr=127.0.0.1 --master_port=5555 \
-train.py -d 1,2,3,4 --local_world_size 4 --resume path/to/checkpoint --finetune true
+train.py -d 0,1,2,3 --local_world_size 4 --resume path/to/checkpoint --finetune true
   ``` 
   
 ### Testing from checkpoints
@@ -178,7 +178,7 @@ Evaluate squence accuracy and edit distance accuracy:
 python utils/calculate_metrics.py --predict-path predict_result.json --label-path label.txt
 
   ```
-**Note**: `label.txt`: multi-line, every line containing `{ImageFile:<ImageFile>, Label:<TextLabel>}`
+**Note**: `label.txt`: multi-line, every line containing `{"ImageFile":"ImageFileName.jpg", "Label":"TextLabelStr"}`
 
 ## Customization
 
