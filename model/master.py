@@ -122,14 +122,14 @@ def predict(_memory, _source, _decode_stage, _max_length, _sos_symbol, _eos_symb
         m_max_probs, m_next_word = torch.max(m_probability, dim=-1)
         to_return_label[:, i + 1] = m_next_word[:, i]
         probabilities[:, i + 1] = m_max_probs[:, i]
-    eos_position_y, eos_position_x = torch.nonzero(to_return_label == _eos_symbol,as_tuple=True)
-    if len(eos_position_y) > 0:
-        eos_position_y_index = eos_position_y[0]
-        for m_position_y, m_position_x in zip(eos_position_y, eos_position_x):
-            if eos_position_y_index == m_position_y:
-                to_return_label[m_position_y, m_position_x + 1:] = _padding_symbol
-                probabilities[m_position_y, m_position_x + 1:] = 1
-                eos_position_y_index += 1
+    # eos_position_y, eos_position_x = torch.nonzero(to_return_label == _eos_symbol,as_tuple=True)
+    # if len(eos_position_y) > 0:
+    #     eos_position_y_index = eos_position_y[0]
+    #     for m_position_y, m_position_x in zip(eos_position_y, eos_position_x):
+    #         if eos_position_y_index == m_position_y:
+    #             to_return_label[m_position_y, m_position_x + 1:] = _padding_symbol
+    #             probabilities[m_position_y, m_position_x + 1:] = 1
+    #             eos_position_y_index += 1
 
     return to_return_label, probabilities
 
